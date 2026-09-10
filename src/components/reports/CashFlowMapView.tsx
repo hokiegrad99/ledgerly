@@ -17,9 +17,8 @@ import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { Card, CardBody, Button } from '../ui/basic';
 import { formatMoney } from '../../lib/money';
-import { currentMonthKey, addMonthsToKey, monthStart, monthEnd, formatMonth, monthKeyOf } from '../../lib/dates';
+import { currentMonthKey, addMonthsToKey, monthStart, monthEnd, formatMonth } from '../../lib/dates';
 import { FlowChart, type FlowLink, type FlowNode } from './FlowChart';
-import { isExcludedFromReports } from '../../domain/exclusions';
 import type { ReportFilters, Transaction, TransactionSplit } from '../../domain/types';
 import { toCsv, downloadText } from './csv';
 
@@ -69,7 +68,6 @@ function aggregate(
 
 export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
   const { repo, groups, categories, categoryById, dataVersion } = useApp();
-  const excludedAccountIds = useMemo(() => new Set<string>(), []); // set by caller below
   const [month, setMonth] = useState(currentMonthKey());
   const [monthTxns, setMonthTxns] = useState<Transaction[]>([]);
   const [monthSplits, setMonthSplits] = useState<TransactionSplit[]>([]);
@@ -109,6 +107,7 @@ export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
 
   const monthTxnIds = useMemo(() => new Set(txns.map((t) => t.id)), [txns]);
   const splits = useMemo(() => monthSplits.filter((s) => monthTxnIds.has(s.transactionId)), [monthSplits, monthTxnIds]);
+  void splits; // aggregation re-filters monthSplits against the filtered set below
 
   const incomeRows = useMemo(
     () => aggregate(monthTxns, monthSplits, (_t) => null, 'in', (_t, catId) => (catId ? categoryById(catId)?.name ?? 'Uncategorized' : 'Uncategorized')),

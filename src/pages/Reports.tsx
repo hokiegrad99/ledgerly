@@ -345,7 +345,7 @@ export default function ReportsPage() {
           <MoneyFlowView income={incomeByCat} spending={[...spendByCat.entries()].map(([id, v]) => ({ name: categoryById(id)?.name ?? 'Uncategorized', value: v })).sort((a, b) => b.value - a.value)} />
         );
       case 'cashflow-map':
-        return <CashFlowMapView txns={filtered} splits={filteredSplits} />;
+        return <CashFlowMapView filters={filters} />;
       default:
         return <EmptyState title="Unknown report" />;
     }
