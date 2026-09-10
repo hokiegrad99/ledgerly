@@ -16,6 +16,7 @@ import type {
   Goal,
   Holding,
   ImportMapping,
+  ImportSession,
   InvestmentTransaction,
   Liability,
   RecurringTransaction,
@@ -63,6 +64,7 @@ interface AppContextValue {
   dashboard: DashboardWidget[];
   savedReports: SavedReport[];
   importMappings: ImportMapping[];
+  importSessions: ImportSession[];
   settings: UserSettings;
   dataVersion: DataVersion;
   /** Re-load all reference data from the repo. */
@@ -118,12 +120,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [dashboard, setDashboard] = useState<DashboardWidget[]>([]);
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
   const [importMappings, setImportMappings] = useState<ImportMapping[]>([]);
+  const [importSessions, setImportSessions] = useState<ImportSession[]>([]);
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [transactionCount, setTransactionCount] = useState(0);
   const [dataVersion, setDataVersion] = useState<DataVersion>({ ref: 0, txn: 0 });
 
   const refresh = useCallback(async () => {
-    const [accs, grps, cats, tgs, rls, rec, gls, secs, holds, inv, liabs, bds, dash, reports, st, mappings] = await Promise.all([
+    const [accs, grps, cats, tgs, rls, rec, gls, secs, holds, inv, liabs, bds, dash, reports, st, mappings, sessions] = await Promise.all([
       repo.getAccounts(),
       repo.getCategoryGroups(),
       repo.getCategories(),
@@ -140,6 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       repo.getSavedReports(),
       repo.getSettings(),
       repo.getImportMappings(),
+      repo.getImportSessions(),
     ]);
     // Budget items for all budgets (bounded in practice).
     const bis: BudgetItem[] = [];
@@ -160,6 +164,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDashboard(dash);
     setSavedReports(reports);
     setImportMappings(mappings);
+    setImportSessions(sessions);
     const merged = st ? { ...DEFAULT_SETTINGS, ...st } : DEFAULT_SETTINGS;
     setSettings(merged);
     applyTheme(merged);
@@ -256,6 +261,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       dashboard,
       savedReports,
       importMappings,
+      importSessions,
       settings,
       dataVersion,
       refresh,
@@ -268,7 +274,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       categoryName: (id) => (id ? catMap.get(id)?.name ?? 'Uncategorized' : 'Uncategorized'),
       accountName: (id) => (id ? accMap.get(id)?.name ?? 'Deleted account' : '—'),
     };
-  }, [ready, accounts, groups, categories, tags, rules, recurring, goals, securities, holdings, investmentTransactions, liabilities, budgets, budgetItems, dashboard, savedReports, importMappings, settings, transactionCount, repo, refresh, bumpTxn]);
+  }, [ready, accounts, groups, categories, tags, rules, recurring, goals, securities, holdings, investmentTransactions, liabilities, budgets, budgetItems, dashboard, savedReports, importMappings, importSessions, settings, transactionCount, repo, refresh, bumpTxn]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

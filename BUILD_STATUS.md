@@ -6,7 +6,7 @@
 
 ## Overall Progress
 
-Completion: **76%** (38 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
+Completion: **80%** (40 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
 
 ### Requirements by status
 
@@ -14,14 +14,14 @@ Completion: **76%** (38 of 50 requirements verified; DEFERRED/NOT_STARTED server
 |---|---|
 | NOT_STARTED | 5 |
 | IN_PROGRESS | 0 |
-| IMPLEMENTED | 7 |
+| IMPLEMENTED | 5 |
 | TESTING | 0 |
-| VERIFIED | 38 |
+| VERIFIED | 40 |
 | BLOCKED | 0 |
 | DEFERRED | 0 |
 | **Total** | **50** |
 
-Completion Percentage = VERIFIED / total active requirements × 100 = 38/50 = 76%.
+Completion Percentage = VERIFIED / total active requirements × 100 = 40/50 = 80%.
 *(Run `npm run project:status` to regenerate live numbers.)*
 
 ## Current Development Phase
@@ -31,10 +31,25 @@ substantially complete; Phase 7 — server mode — is deferred by design).
 
 **Current Task:** The §48 acceptance checklist is fully automated **and verified
 against the live deployment (90/90, 2026-09-10)**. Remaining backlog: the
-Medium/Low items in NEXT_TASKS.md (REQ-023 history UI, REQ-031 holdings
-auto-derivation, server-mode docs).
+Low items in NEXT_TASKS.md (server-mode docs, dashboard niceties).
 
 ## Last Completed Work
+
+### 2026-09-10 — REQ-023 import history UI + REQ-031 holdings auto-derivation
+- **REQ-023:** `importSessions` now flows through `AppContext`, and the Import &
+  Export page shows a "Recent imports" card (file, type, account, date, imported/
+  skipped counts) — the sessions were recorded but never displayed.
+- **REQ-031:** new `src/domain/holdings.ts` — pure `deriveHoldings` replays
+  share-affecting investment activity (buy/sell/reinvest cost = amount, or
+  shares×price+fees; average-cost sells; split multipliers; signed transfers;
+  income-only never opens a position) and `planHoldingSync` diffs the result
+  against existing holdings into adds/updates/removals. The Investments page
+  gains a "Sync from activity" button with a preview modal before applying.
+  Manually-maintained holdings without activity are left untouched; manually
+  entered prices are preserved on update.
+- 16 new tests in `src/domain/holdings.test.ts` — **163 total** (12 files);
+  typecheck and production build clean.
+- REQ-023 and REQ-031 marked VERIFIED (40 of 50 verified → 80%).
 
 ### 2026-09-10 — Split + transfer editing automated (Phase 9)
 - Added Phase 9 to `scripts/verify-deployed.mjs`: opens the row menu on a real
@@ -245,21 +260,21 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
 
-**Next recommended task:** The §48 checklist is verified live (90/90). Move to
-the Medium backlog: REQ-023 (import-session history UI) and REQ-031 (auto-derive
-holdings from investment activity), then REQ-044/REQ-047 docs.
+**Next recommended task:** Commit and push the REQ-023/REQ-031 work, re-run the
+harness against the live deployment, then continue the Low backlog: REQ-044
+(ServerRepository doc + stub) and REQ-047 (FinancialDataProvider docs).
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
 **Files changed (this session):** `bbc205b` (search-wiring fix + harness search
 checks + audit docs); Phase 8 (rule application on import) in
 `scripts/verify-deployed.mjs`; BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
 
-**Tests run:** `npm test` (147 passing), `npm run typecheck`, `npm run build`,
+**Tests run:** `npm test` (163 passing), `npm run typecheck`, `npm run build`,
 `node scripts/verify-deployed.mjs` (**90/90** on the local build, two consecutive
 runs; **90/90 against the live deployment** after the `18d1cbc` push — Phases
 8–9 are live), plus a live delete/undo check (351 → 301 → 351)
 in a prior session.
 
-**Tests passing:** 147/147. **Tests failing:** 0.
+**Tests passing:** 163/163. **Tests failing:** 0.
 
 **Important decisions:** see DECISIONS.md (DEC-001..DEC-009).

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plus, LineChart, Trash2 } from 'lucide-react';
+import { Plus, LineChart, Trash2, RefreshCw } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, Card, CardBody, EmptyState, Stat, Badge } from '../components/ui/basic';
@@ -7,6 +7,7 @@ import { Field, Input, Select, AmountInput } from '../components/ui/form';
 import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import { DonutChart, LegendList, CHART_COLORS } from '../components/ui/Charts';
 import { portfolioSummary, investmentPerformance } from '../domain/calculations';
+import { deriveHoldings, planHoldingSync } from '../domain/holdings';
 import { formatMoney } from '../lib/money';
 import { newId, nowISO } from '../lib/id';
 import type { Holding, InvestmentTransaction, InvestmentTxType, Security, SecurityType } from '../domain/types';
@@ -231,6 +232,116 @@ function InvestmentTxForm({ open, onClose }: { open: boolean; onClose: () => voi
   );
 }
 
+/**
+ * Preview and apply REQ-031 holdings auto-derivation: replays investment
+ * activity into per-(account, security) positions and proposes adds, updates,
+ * and removals against the current holdings list.
+ */
+function SyncHoldingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { holdings, investmentTransactions, securities, accountById, repo, refresh, bumpTxn } = useApp();
+  const [applying, setApplying] = useState(false);
+  const [applied, setApplied] = useState<string | null>(null);
+
+  const plan = useMemo(() => planHoldingSync(holdings, deriveHoldings(investmentTransactions)), [holdings, investmentTransactions]);
+  const total = plan.adds.length + plan.updates.length + plan.removals.length;
+
+  const apply = async () => {
+    setApplying(true);
+    try {
+      if (plan.adds.length) await repo.saveHoldings(plan.adds);
+      for (const h of plan.updates) await repo.saveHolding(h);
+      for (const h of plan.removals) await repo.deleteHolding(h.id);
+      bumpTxn();
+      await refresh();
+      setApplied(
+        `Holdings synced: ${plan.adds.length} added, ${plan.updates.length} updated, ${plan.removals.length} removed.`,
+      );
+      onClose();
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const secLabel = (securityId: string) => {
+    const s = securities.find((x) => x.id === securityId);
+    return s ? `${s.symbol}` : 'Unknown security';
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Sync holdings from activity"
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={() => void apply()} disabled={applying || total === 0}>
+            {applying ? 'Syncing…' : `Apply ${total} change${total === 1 ? '' : 's'}`}
+          </Button>
+        </>
+      }
+    >
+      {applied && <p className="mb-3 text-sm text-emerald-600 dark:text-emerald-400">{applied}</p>}
+      {total === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Your holdings already match the recorded investment activity. Nothing to change.
+        </p>
+      ) : (
+        <div className="space-y-4 text-sm">
+          {plan.adds.length > 0 && (
+            <div>
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Add ({plan.adds.length})</h4>
+              <ul className="space-y-1">
+                {plan.adds.map((h) => (
+                  <li key={h.id} className="flex justify-between gap-3">
+                    <span>{accountById(h.accountId)?.name ?? '—'} · {secLabel(h.securityId)}</span>
+                    <span className="tabular-nums text-slate-500 dark:text-slate-400">{h.shares} sh · {formatMoney(h.costBasis)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {plan.updates.length > 0 && (
+            <div>
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">Update ({plan.updates.length})</h4>
+              <ul className="space-y-1">
+                {plan.updates.map((h) => {
+                  const before = holdings.find((x) => x.id === h.id);
+                  return (
+                    <li key={h.id} className="flex justify-between gap-3">
+                      <span>{accountById(h.accountId)?.name ?? '—'} · {secLabel(h.securityId)}</span>
+                      <span className="tabular-nums text-slate-500 dark:text-slate-400">
+                        {before?.shares ?? '?'} → {h.shares} sh · {formatMoney(before?.costBasis ?? 0)} → {formatMoney(h.costBasis)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {plan.removals.length > 0 && (
+            <div>
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">Remove ({plan.removals.length})</h4>
+              <ul className="space-y-1">
+                {plan.removals.map((h) => (
+                  <li key={h.id} className="flex justify-between gap-3">
+                    <span>{accountById(h.accountId)?.name ?? '—'} · {secLabel(h.securityId)}</span>
+                    <span className="tabular-nums text-slate-500 dark:text-slate-400">position closed</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="text-xs text-slate-400">
+            Derived with the average-cost method from the recorded buys, sells, reinvestments, splits, and transfers. Holdings with no recorded activity are left untouched.
+          </p>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export default function InvestmentsPage() {
   const { holdings, securities, investmentTransactions, accounts, repo, refresh, bumpTxn, accountById } = useApp();
   const [tab, setTab] = useState<'holdings' | 'activity' | 'securities'>('holdings');
@@ -239,6 +350,7 @@ export default function InvestmentsPage() {
   const [securityModal, setSecurityModal] = useState(false);
   const [securityEdit, setSecurityEdit] = useState<Security | null>(null);
   const [txModal, setTxModal] = useState(false);
+  const [syncModal, setSyncModal] = useState(false);
   const [deleting, setDeleting] = useState<Holding | null>(null);
 
   const portfolio = useMemo(() => portfolioSummary(holdings, securities, accounts), [holdings, securities, accounts]);
@@ -290,6 +402,7 @@ export default function InvestmentsPage() {
           <>
             <Button variant="secondary" onClick={() => { setSecurityEdit(null); setSecurityModal(true); }}>Add security</Button>
             <Button variant="secondary" onClick={() => setTxModal(true)}>Record activity</Button>
+            <Button variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={() => setSyncModal(true)}>Sync from activity</Button>
             <Button variant="primary" icon={<Plus className="h-4 w-4" />} onClick={() => { setHoldingEdit(null); setHoldingModal(true); }}>Add holding</Button>
           </>
         }
@@ -472,6 +585,7 @@ export default function InvestmentsPage() {
       {holdingModal && <HoldingFormModal open={holdingModal} onClose={() => setHoldingModal(false)} holding={holdingEdit} />}
       {securityModal && <SecurityFormModal open={securityModal} onClose={() => setSecurityModal(false)} security={securityEdit} />}
       {txModal && <InvestmentTxForm open={txModal} onClose={() => setTxModal(false)} />}
+      {syncModal && <SyncHoldingsModal open={syncModal} onClose={() => setSyncModal(false)} />}
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}

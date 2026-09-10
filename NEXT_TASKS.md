@@ -43,14 +43,19 @@ Prioritized backlog. This list always represents the most useful next work.
 (none — the §48 checklist is fully automated and verified live; remaining work
 is the Medium/Low backlog below)
 
+> ✅ **Done 2026-09-10:** REQ-023 — import session history surfaced as a "Recent
+> imports" card on the Import & Export page (sessions were recorded but never
+> displayed). REQ-031 — holdings auto-derivation: `src/domain/holdings.ts` replays
+> buy/sell/reinvest/split/transfer activity with average-cost accounting and a
+> "Sync from activity" preview modal on the Investments page applies adds/updates/
+> removals. 163 tests; typecheck + build clean.
+
 ## Medium
 
-1. **REQ-023** — Surface import session history in the UI (data currently recorded, not displayed).
-2. **REQ-031** — Auto-derive holdings from investment transactions (buy/sell/reinvest update shares + cost basis).
+1. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
+2. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
 
 ## Low
 
-3. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
-4. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
-5. Dashboard: widget resize support (currently reorder/remove/add only).
-6. Category transaction counts in the Settings categories UI (currently a stub).
+3. Dashboard: widget resize support (currently reorder/remove/add only).
+4. Category transaction counts in the Settings categories UI (currently a stub).

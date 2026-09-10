@@ -205,7 +205,8 @@ been checked.
 - **Description:** Record import sessions; remember column mappings per header fingerprint.
 - **Dependencies:** REQ-020
 - **Acceptance criteria:** Second import of the same bank layout pre-fills the mapping.
-- **Status:** IMPLEMENTED
+- **Status:** VERIFIED (mapping memory already verified; a "Recent imports" history card
+  was added to the Import & Export page on 2026-09-10, surfacing the recorded sessions)
 
 ---
 
@@ -283,7 +284,9 @@ been checked.
 - **Description:** Record buy/sell/dividend/interest/transfer/split/reinvest; contributions, income totals.
 - **Dependencies:** REQ-030
 - **Acceptance criteria:** Activity log records and summarizes.
-- **Status:** IMPLEMENTED
+- **Status:** VERIFIED (holdings can now be auto-derived from investment activity via
+  "Sync from activity" on the Investments page — average-cost replay in
+  `src/domain/holdings.ts`, 16 unit tests, 2026-09-10)
 
 ---
 

@@ -2,6 +2,39 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Import history UI (REQ-023) + holdings auto-derivation (REQ-031)
+
+### Added
+- **Import & Export — "Recent imports" card (REQ-023):** the import sessions that
+  were already recorded on every CSV/QFX import are now surfaced in the UI —
+  file name, type, target account, date, and imported/duplicate counts (five
+  most recent). `importSessions` is exposed through `AppContext`.
+- **Investments — "Sync from activity" (REQ-031):** new `src/domain/holdings.ts`
+  replays recorded investment transactions into per-(account, security)
+  positions using average-cost accounting:
+  - buy/reinvest: shares and cost basis accumulate (amount, or shares×price+fees
+    when amount is 0);
+  - sell: shares decrease, cost basis reduces proportionally (average cost);
+  - split: `shares` is the multiplier (2 = 2-for-1, 0.5 = reverse);
+  - transfer: signed share delta — inflow cost = shares×price, outflow reduces
+    proportionally;
+  - dividend/interest: cash only, never opens a position;
+  - sells beyond the recorded position clamp at zero; replay order is
+    date-then-createdAt regardless of input order.
+  - `planHoldingSync` diffs derived positions against existing holdings and
+    proposes adds/updates/removals; a preview modal shows the exact changes
+    before anything is saved. Holdings with no recorded activity are left
+    untouched, and manually entered prices survive updates.
+
+### Tests
+- New: `src/domain/holdings.test.ts` (16 tests covering buys, average-cost
+  sells, over-sell clamping, splits/reverse splits, transfers, income-only
+  activity, ordering, per-pair isolation, and all planner outcomes).
+  **163 total** (12 files). Typecheck and production build clean.
+
+### Status
+- REQ-023 and REQ-031 marked VERIFIED — completion 76% → **80%** (40 of 50).
+
 ## 2026-09-10 — §48 checklist verified against the live deployment (90/90)
 
 ### Verified
