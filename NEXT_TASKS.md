@@ -29,15 +29,17 @@ Prioritized backlog. This list always represents the most useful next work.
 > ✅ **Done 2026-09-10:** Rule application on import automated (Phase 8) — creates a
 > rule in Settings, imports a matching OFX statement, asserts the rule-applied
 > category appears on the imported row. **77/77** local harness checks.
+> ✅ **Done 2026-09-10:** Split + transfer editing automated (Phase 9) — splits a
+> real transaction into two category lines (badge + persisted splits) and links/
+> unlinks a transfer pair via "Create & link" (counterpart txn + pair record,
+> both sides marked transfer). **90/90** local harness checks — the **full §48
+> interactive acceptance checklist is now automated**.
 
 ## High
 
-1. **Push `bbc205b` + Phase 8 harness work** — `bbc205b` is verified live at 70/70;
-   the Phase 8 rule-on-import checks (77/77 local) ship with the next push.
-2. **§48 acceptance remainder** — split/transfer editing is the only interactive
-   flow left. CSV import, QFX/OFX import (FITID dedupe), restore (replace/merge),
-   and rule application on import are already automated in
-   `scripts/verify-deployed.mjs`.
+1. **Push the pending commits** — `bbc205b` (search fix, verified live at 70/70),
+   `2a0a7d1` (Phase 8), and the Phase 9 harness work (90/90 local) ship with the
+   next push; live then re-verifies at 90/90.
 
 ## Medium
 

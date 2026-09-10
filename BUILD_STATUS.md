@@ -29,10 +29,20 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 38/50 = 76
 **Phase 6 — Backup/restore, PWA, GitHub Pages deployment** (spec phases 1–6 are
 substantially complete; Phase 7 — server mode — is deferred by design).
 
-**Current Task:** Finish the §48 interactive acceptance remainder (split/transfer
-editing is the only interactive flow left).
+**Current Task:** The §48 acceptance checklist is now fully automated (90/90).
+Remaining backlog: the Medium/Low items in NEXT_TASKS.md.
 
 ## Last Completed Work
+
+### 2026-09-10 — Split + transfer editing automated (Phase 9)
+- Added Phase 9 to `scripts/verify-deployed.mjs`: opens the row menu on a real
+  transaction, splits it into two category lines via the SplitModal (category
+  selected, saved, Split badge shown, 2 split lines persisted), then links it to
+  a counterpart via the TransferModal's "Create & link" (counterpart transaction
+  persisted, pair record written, both sides marked transfer — linked 52 → 54),
+  then unlinks the pair (record removed). **90/90 checks pass** on the local
+  build (two runs), no console errors. This completes the entire §48 interactive
+  acceptance checklist.
 
 ### 2026-09-10 — Rule application on import automated (Phase 8)
 - Added Phase 8 to `scripts/verify-deployed.mjs`: creates a real rule in Settings
@@ -153,7 +163,9 @@ editing is the only interactive flow left).
 onboarding/sample data, all 12 routes, search (merchant + tag + category + account
 names), backup download + validation, PWA online/offline, responsive pass
 (375/768/1024/1440), CSV import wizard, restore wizard (replace + merge),
-QFX/OFX import wizard (FITID dedupe), and **rule application on import**.
+QFX/OFX import wizard (FITID dedupe), rule application on import, and
+**split + transfer editing**. The full §48 acceptance checklist is automated
+(90/90 checks).
 
 ## Current Work
 
@@ -216,8 +228,7 @@ QFX/OFX import wizard (FITID dedupe), and **rule application on import**.
   backup round-trip, and the IndexedDB repository.
 
 **What remains unfinished:**
-- §48 interactive acceptance remainder — split/transfer editing is the only
-  interactive flow left (rule application on import is now automated in Phase 8).
+- §48 interactive acceptance — fully automated (90/90 checks, Phases 1–9).
 - Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
 
 **Current implementation state:**
@@ -228,9 +239,9 @@ QFX/OFX import wizard (FITID dedupe), and **rule application on import**.
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
 
-**Next recommended task:** Push `bbc205b` (search-wiring fix — already verified
-live at 70/70) and the Phase 8 harness work, then finish the §48 split/transfer
-editing checks.
+**Next recommended task:** Push `bbc205b`, `2a0a7d1` (Phase 8), and the Phase 9
+work; the live site is at 70/70 and will reach 90/90 with the harness update
+(harness-only, no app code).
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
 **Files changed (this session):** `bbc205b` (search-wiring fix + harness search
@@ -238,10 +249,10 @@ checks + audit docs); Phase 8 (rule application on import) in
 `scripts/verify-deployed.mjs`; BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
 
 **Tests run:** `npm test` (147 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (**77/77** on the local build, two consecutive
-runs; **70/70** against the live deployment after the `bbc205b` push — the
-category/account-name search checks now pass live; Phase 8 ships with the next
-push), plus a live delete/undo check (351 → 301 → 351) in a prior session.
+`node scripts/verify-deployed.mjs` (**90/90** on the local build, two consecutive
+runs; **70/70** against the live deployment after the `bbc205b` push — Phases
+8–9 ship with the next push), plus a live delete/undo check (351 → 301 → 351)
+in a prior session.
 
 **Tests passing:** 147/147. **Tests failing:** 0.
 

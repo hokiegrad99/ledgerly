@@ -999,6 +999,194 @@ async function main() {
     }
 
     // ========================================================================
+    // PHASE 9 — Split + transfer editing (end-to-end)
+    // ========================================================================
+    console.log('── Phase 9: Split + transfer editing ──────────────────────────');
+
+    // Opens the row's dropdown menu and clicks the item whose text matches.
+    const rowMenuClick = async (rowIndex, itemText) => {
+      const opened = await page.eval(`(() => {
+        const btn = document.querySelectorAll('button[aria-label="Menu"]')[${rowIndex}];
+        if (!btn) return false;
+        btn.click();
+        return true;
+      })()`);
+      if (!opened) return false;
+      await SLEEP(300);
+      return page.eval(`(() => {
+        const item = [...document.querySelectorAll('[role="menuitem"]')]
+          .find((m) => m.textContent.includes(${JSON.stringify(itemText)}));
+        if (!item) return false;
+        item.click();
+        return true;
+      })()`);
+    };
+
+    const dbSplits = `(async () => {
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open('ledgerly');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      return new Promise((res, rej) => {
+        const c = db.transaction('splits').objectStore('splits').count();
+        c.onsuccess = () => res(c.result);
+        c.onerror = () => rej(c.error);
+      });
+    })()`;
+    const dbTransfers = `(async () => {
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open('ledgerly');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      return new Promise((res, rej) => {
+        const c = db.transaction('transfers').objectStore('transfers').count();
+        c.onsuccess = () => res(c.result);
+        c.onerror = () => rej(c.error);
+      });
+    })()`;
+
+    try {
+      // ------------------------------------------------------------- split
+      // Split a real transaction into two category lines and verify the
+      // Split badge + the stored split lines.
+      await gotoRoute(page, '#/transactions', 'Transactions');
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length > 0`, { timeout: 10000 });
+      await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="Search transactions…"]');
+        if (!input) return;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'Trader Joe');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length > 0`, { timeout: 10000 });
+      const splitsBefore = await page.eval(dbSplits);
+      const splitMerchant = await page.eval(`document.querySelectorAll('table tbody tr')[0]?.querySelectorAll('td')[2]?.innerText ?? ''`);
+
+      const splitOpened = await rowMenuClick(0, 'Split…');
+      check('Split: opened the split dialog from the row menu', splitOpened);
+      await waitFor(page, `document.body.innerText.includes('Split transaction —')`, { timeout: 8000 });
+      await clickButton(page, `b.textContent.trim() === 'Add split line'`);
+      await waitFor(page, `[...document.querySelectorAll('[role="dialog"] select')].length === 1`, { timeout: 8000 });
+      // Category for the first split line.
+      const catSet = await page.eval(`(() => {
+        const sel = document.querySelectorAll('[role="dialog"] select')[0];
+        if (!sel) return null;
+        const opt = [...sel.options].find((o) => o.textContent.trim() === 'Groceries');
+        if (!opt) return null;
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+        setter.call(sel, opt.value);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return opt.textContent.trim();
+      })()`);
+      check('Split: first line category set to Groceries', catSet === 'Groceries', catSet ?? 'select not found');
+      await clickButton(page, `b.textContent.trim() === 'Add split line'`);
+      await SLEEP(300);
+      const savedSplits = await clickButton(page, `b.textContent.trim() === 'Save splits'`);
+      check('Split: saved the split', savedSplits);
+      await waitFor(page, `!document.body.innerText.includes('Split transaction —')`, { timeout: 8000 });
+
+      const splitsAfter = await page.eval(dbSplits);
+      check('Split: split lines persisted', splitsAfter === splitsBefore + 2, `splits ${splitsBefore} → ${splitsAfter}`);
+      const badgeShown = await page.eval(`(() => {
+        const row = [...document.querySelectorAll('table tbody tr')][0];
+        return row ? row.innerText.includes('Split') : false;
+      })()`);
+      check('Split: row shows the Split badge', badgeShown);
+
+      // --------------------------------------------------------- transfer
+      // Link a transaction to a counterpart via "Create & link", then unlink.
+      const txnsBefore = await page.eval(DB_TXN_COUNT);
+      const transfersBefore = await page.eval(dbTransfers);
+      const linkedBefore = await page.eval(`(async () => {
+        const db = await new Promise((res, rej) => {
+          const r = indexedDB.open('ledgerly');
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+        const all = await new Promise((res, rej) => {
+          const c = db.transaction('transactions').objectStore('transactions').getAll();
+          c.onsuccess = () => res(c.result);
+          c.onerror = () => rej(c.error);
+        });
+        return all.filter((t) => t.transferId).length;
+      })()`);
+      await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="Search transactions…"]');
+        if (!input) return;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'Whole Foods');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length > 0`, { timeout: 10000 });
+      const transferOpened = await rowMenuClick(0, 'Link transfer…');
+      check('Transfer: opened the link dialog from the row menu', transferOpened);
+      await waitFor(page, `document.body.innerText.includes('Or create a counterpart transaction')`, { timeout: 8000 });
+
+      // Target account for the auto-created counterpart.
+      const targetSet = await page.eval(`(() => {
+        const sel = [...document.querySelectorAll('[role="dialog"] select')]
+          .find((s) => [...s.options].some((o) => o.textContent.trim() === 'Select an account…'));
+        if (!sel) return null;
+        const opt = [...sel.options].find((o) => o.value !== '' && o.textContent.trim() !== 'Select an account…');
+        if (!opt) return null;
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+        setter.call(sel, opt.value);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return opt.textContent.trim();
+      })()`);
+      check('Transfer: target account selectable', !!targetSet, targetSet ?? 'no target account');
+      await SLEEP(300);
+      const created = await clickButton(page, `b.textContent.trim() === 'Create & link'`);
+      check('Transfer: created the counterpart pair', created);
+      await waitFor(page, `!document.body.innerText.includes('Or create a counterpart transaction')`, { timeout: 8000 });
+
+      const txnsAfter = await page.eval(DB_TXN_COUNT);
+      const transfersAfter = await page.eval(dbTransfers);
+      check('Transfer: counterpart transaction persisted', txnsAfter === txnsBefore + 1,
+        `transactions ${txnsBefore} → ${txnsAfter}`);
+      check('Transfer: pair record persisted', transfersAfter === transfersBefore + 1,
+        `transfers ${transfersBefore} → ${transfersAfter}`);
+      const linkedInDb = await page.eval(`(async () => {
+        const db = await new Promise((res, rej) => {
+          const r = indexedDB.open('ledgerly');
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+        const all = await new Promise((res, rej) => {
+          const c = db.transaction('transactions').objectStore('transactions').getAll();
+          c.onsuccess = () => res(c.result);
+          c.onerror = () => rej(c.error);
+        });
+        const linked = all.filter((t) => t.transferId);
+        const counterpart = all.find((t) => t.transferId && (t.merchant.includes('Transfer from') || t.merchant.includes('Transfer to')));
+        const wfLinked = linked.some((t) => t.merchant.includes('Whole Foods'));
+        return {
+          linkedCount: linked.length,
+          wfLinked,
+          counterpart: counterpart?.merchant ?? null,
+          counterpartType: counterpart?.type ?? null,
+        };
+      })()`);
+      check('Transfer: both sides marked as transfers in the DB',
+        linkedInDb.linkedCount === linkedBefore + 2 && linkedInDb.wfLinked
+          && linkedInDb.counterpart && linkedInDb.counterpartType === 'transfer',
+        `linked ${linkedBefore} → ${linkedInDb.linkedCount}, counterpart="${linkedInDb.counterpart}"`);
+
+      // Unlink the pair again.
+      await SLEEP(500);
+      const unlinkOpened = await rowMenuClick(0, 'Unlink transfer');
+      check('Transfer: unlink available from the row menu', unlinkOpened);
+      await SLEEP(800);
+      const transfersAfterUnlink = await page.eval(dbTransfers);
+      check('Transfer: unlink removed the pair record', transfersAfterUnlink === transfersBefore,
+        `transfers ${transfersAfter} → ${transfersAfterUnlink}`);
+    } catch (e) {
+      check('Split + transfer editing', false, e.message);
+    }
+
+    // ========================================================================
     // Summary
     // ========================================================================
     const failed = results.filter((r) => !r.ok);

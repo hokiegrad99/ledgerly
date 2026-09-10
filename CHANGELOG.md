@@ -2,6 +2,25 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Split + transfer editing automated (Phase 9); §48 checklist complete
+
+### Added
+- `scripts/verify-deployed.mjs` Phase 9 — **split + transfer editing**, end to end:
+  - *Split*: opens the row menu on a real transaction, splits it into two category
+    lines via the SplitModal (category selected, saved, Split badge shown, 2 split
+    lines persisted to IndexedDB).
+  - *Transfer*: opens the TransferModal via "Link transfer…", selects a target
+    account, uses "Create & link" to create a counterpart transaction (+1 txn,
+    +1 pair record, both sides marked `transfer` — linked 52 → 54), then unlinks
+    the pair (record removed).
+
+### Verified
+- **90/90 checks pass** on the local build (two consecutive runs), no console
+  errors. With Phase 9, the **entire §48 interactive acceptance checklist is
+  automated** (Phases 1–9: onboarding, routes, search, backup, PWA offline,
+  responsive, CSV import + dedupe, restore replace/merge, QFX import + FITID
+  dedupe, rule-on-import, split/transfer editing).
+
 ## 2026-09-10 — Rule application on import automated (Phase 8)
 
 ### Added
