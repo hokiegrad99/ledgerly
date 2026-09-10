@@ -18,6 +18,7 @@ import {
 } from '../domain/calculations';
 import { MoneyBarChart, TrendAreaChart, SimpleLineChart, LegendList, CHART_COLORS } from '../components/ui/Charts';
 import { reportExcludedAccountIds, isExcludedFromReports } from '../domain/exclusions';
+import { CashFlowMapView } from '../components/reports/CashFlowMapView';
 import type { ReportFilters, SavedReport, Transaction } from '../domain/types';
 
 interface ReportDef {
@@ -36,6 +37,7 @@ const REPORT_TYPES: ReportDef[] = [
   { kind: 'networth-time', label: 'Net worth over time', description: 'Assets minus liabilities trend' },
   { kind: 'category-trends', label: 'Category trends', description: 'Top categories across months' },
   { kind: 'money-flow', label: 'Money flow', description: 'Income → categories → spending' },
+  { kind: 'cashflow-map', label: 'Cash flow (Monarch-style)', description: 'Sources → income → groups → categories for one month' },
 ];
 
 function toCsv(headers: string[], rows: (string | number)[][]): string {
@@ -342,6 +344,8 @@ export default function ReportsPage() {
         return (
           <MoneyFlowView income={incomeByCat} spending={[...spendByCat.entries()].map(([id, v]) => ({ name: categoryById(id)?.name ?? 'Uncategorized', value: v })).sort((a, b) => b.value - a.value)} />
         );
+      case 'cashflow-map':
+        return <CashFlowMapView txns={filtered} splits={filteredSplits} />;
       default:
         return <EmptyState title="Unknown report" />;
     }
