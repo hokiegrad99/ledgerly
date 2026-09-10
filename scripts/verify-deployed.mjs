@@ -1186,6 +1186,160 @@ async function main() {
       check('Split + transfer editing', false, e.message);
     }
 
+    // Phase 10 — import session history (REQ-023).
+    // Runs after the import phases (7/8 create real sessions; Phase 6's
+    // replace-restore wiped the CSV ones) and proves the Recent imports card.
+    {
+      console.log('\n── Phase 10: Import session history (REQ-023) ─────────────────');
+      try {
+        await gotoRoute(page, '#/import-export', 'Import & Export');
+        // The card header is rendered with the `uppercase` class, so innerText
+        // returns "RECENT IMPORTS" — compare case-insensitively.
+        await waitFor(page, `document.body.innerText.toLowerCase().includes('recent imports')`, { timeout: 10000 });
+        check('Import history: Recent imports card is shown', true);
+        const history = await page.eval(`(() => {
+          const rows = document.querySelectorAll('table tbody tr');
+          return { rows: rows.length, text: document.body.innerText };
+        })()`);
+        // At this point Phase 6 (replace-restore) has already wiped the
+        // importSessions table, so only the sessions created by Phases 7 and 8
+        // (the OFX/QFX statement imports) remain. The card is a <ul> list, not
+        // a table, so match the recorded fixture file names in the page text.
+        const bodyText = (await page.eval(`document.body.innerText`)).toLowerCase();
+        const listed = ['ledgerly-verify.ofx', 'ledgerly-verify-repeat.qfx', 'ledgerly-verify-rule.ofx']
+          .filter((n) => bodyText.includes(n));
+        check('Import history: lists the OFX/QFX import sessions', listed.length >= 2,
+          listed.join(', ') || 'none of the fixture file names found');
+        check('Import history: sessions carry imported counts',
+          history.text.includes('imported') && (/duplicates skipped|\d+ imported/.test(history.text)),
+          history.text.match(/\d+ imported/)?.[0] ?? 'no counts');
+      } catch (e) {
+        check('Import session history', false, e.message);
+      }
+    }
+
+    // Phase 11 — holdings auto-derivation (REQ-031): Sync from activity.
+    {
+      console.log('\n── Phase 11: Holdings sync from investment activity (REQ-031) ──');
+      try {
+        await gotoRoute(page, '#/investments', 'Investments');
+        await waitFor(page, `document.body.innerText.includes('Portfolio value')`, { timeout: 10000 });
+
+        const readHoldings = `(async () => {
+          const db = await new Promise((res, rej) => {
+            const r = indexedDB.open('ledgerly');
+            r.onsuccess = () => res(r.result);
+            r.onerror = () => rej(r.error);
+          });
+          const [holds, secs, accs] = await Promise.all([
+            new Promise((res, rej) => {
+              const c = db.transaction('holdings').objectStore('holdings').getAll();
+              c.onsuccess = () => res(c.result);
+              c.onerror = () => rej(c.error);
+            }),
+            new Promise((res, rej) => {
+              const c = db.transaction('securities').objectStore('securities').getAll();
+              c.onsuccess = () => res(c.result);
+              c.onerror = () => rej(c.error);
+            }),
+            new Promise((res, rej) => {
+              const c = db.transaction('accounts').objectStore('accounts').getAll();
+              c.onsuccess = () => res(c.result);
+              c.onerror = () => rej(c.error);
+            }),
+          ]);
+          return holds.map((h) => {
+            const s = secs.find((x) => x.id === h.securityId);
+            const a = accs.find((x) => x.id === h.accountId);
+            return { symbol: s?.symbol ?? h.securityId, accountType: a?.type ?? '', shares: h.shares, cost: h.costBasis, price: h.currentPrice };
+          });
+        })()`;
+
+        const before = await page.eval(readHoldings);
+        const activity = await page.eval(`(async () => {
+          const db = await new Promise((res, rej) => {
+            const r = indexedDB.open('ledgerly');
+            r.onsuccess = () => res(r.result);
+            r.onerror = () => rej(r.error);
+          });
+          const all = await new Promise((res, rej) => {
+            const c = db.transaction('investmentTransactions').objectStore('investmentTransactions').getAll();
+            c.onsuccess = () => res(c.result);
+            c.onerror = () => rej(c.error);
+          });
+          return all;
+        })()`);
+        // The harness DB is freshly seeded with sample data, so the expected
+        // positions are exactly the sample's monthly buys: brokerage/VTI and
+        // retirement/SPY. The seeded holdings intentionally differ, so the
+        // sync must propose exactly two updates and preserve the prices.
+        const vtiBuys = activity.filter((t) => t.type === 'buy' && t.securityId);
+        const perPair = new Map();
+        for (const t of vtiBuys) {
+          const k = t.accountId + '::' + t.securityId;
+          perPair.set(k, (perPair.get(k) ?? 0) + t.shares);
+        }
+        const pairs = [...perPair.entries()];
+        check('Sync: activity seeded for two (account, security) pairs', pairs.length === 2,
+          `${pairs.length} pairs with share-affecting activity`);
+
+        const syncBtn = await clickButton(page, `b.textContent.trim() === 'Sync from activity'`);
+        check('Sync: "Sync from activity" button opens the preview modal', syncBtn);
+        await waitFor(page, `document.body.innerText.includes('Derived with the average-cost method')`, { timeout: 8000 });
+
+        const modalText = await page.eval(`document.body.innerText`);
+        // Section headings are rendered uppercase (CSS text-transform), which
+        // innerText reflects — match case-insensitively.
+        const updateSection = /update \(2\)/i.test(modalText);
+        const addSection = /add \(/i.test(modalText);
+        const removeSection = /remove \(/i.test(modalText);
+        check('Sync: plan proposes exactly 2 updates', updateSection && !removeSection,
+          `update=${updateSection} remove=${removeSection} add=${addSection}`);
+        const showsVti = modalText.includes('VTI');
+        const showsSpy = modalText.includes('SPY');
+        const showsShares = modalText.includes('40 sh') && modalText.includes('20 sh');
+        check('Sync: preview lists VTI and SPY positions', showsVti && showsSpy);
+        check('Sync: preview shows derived share counts (40 sh, 20 sh)', showsShares,
+          modalText.match(/\d+(\.\d+)? sh/g)?.join(', ') ?? 'no share counts');
+        const showsArrow = modalText.includes('→');
+        // The update rows show cost basis before → after (not share prices).
+        const showsPrice = modalText.includes('$9,800.00') && modalText.includes('$9,960.00');
+        check('Sync: preview shows before → after values', showsArrow && showsPrice,
+          `arrow=${showsArrow} new cost basis shown=${showsPrice}`);
+
+        const applied = await clickButton(page, `b.textContent.trim().startsWith('Apply')`);
+        check('Sync: Apply commits the plan', applied);
+        await waitFor(page, `!document.body.innerText.includes('Derived with the average-cost method')`, { timeout: 8000 });
+
+        const after = await page.eval(readHoldings);
+        // VTI exists in two accounts; select the positions by symbol + account type
+        // (the sample "retirement" account is a 401(k), type '401k').
+        const byPair = (rows, symbol, accountType) => rows.find((h) => h.symbol === symbol && h.accountType === accountType);
+        const vtiBefore = byPair(before, 'VTI', 'brokerage');
+        const spyBefore = byPair(before, 'SPY', '401k');
+        const vtiAfter = byPair(after, 'VTI', 'brokerage');
+        const spyAfter = byPair(after, 'SPY', '401k');
+        check('Sync: brokerage VTI holding updated to 40 sh / $9,800 cost',
+          vtiBefore && vtiAfter && vtiAfter.shares === 40 && vtiAfter.cost === 980000,
+          `shares ${vtiBefore?.shares} → ${vtiAfter?.shares}, cost ${vtiBefore?.cost} → ${vtiAfter?.cost}`);
+        check('Sync: retirement SPY holding updated to 20 sh / $9,960 cost',
+          spyBefore && spyAfter && spyAfter.shares === 20 && spyAfter.cost === 996000,
+          `shares ${spyBefore?.shares} → ${spyAfter?.shares}, cost ${spyBefore?.cost} → ${spyAfter?.cost}`);
+        const pricesKept =
+          vtiAfter?.price === 25600 && spyAfter?.price === 52100;
+        check('Sync: manually entered prices preserved', pricesKept,
+          `VTI ${vtiAfter?.price} (want 25600), SPY ${spyAfter?.price} (want 52100)`);
+        const othersUntouched = after.filter((h) => !(h.symbol === 'VTI' && h.accountType === 'brokerage') && !(h.symbol === 'SPY' && h.accountType === '401k')).length
+          === before.filter((h) => !(h.symbol === 'VTI' && h.accountType === 'brokerage') && !(h.symbol === 'SPY' && h.accountType === '401k')).length;
+        check('Sync: holdings without activity left untouched', othersUntouched);
+        check('Sync: no add or removal proposed',
+          after.length === before.length,
+          `holdings ${before.length} → ${after.length}`);
+      } catch (e) {
+        check('Holdings sync from activity', false, e.message);
+      }
+    }
+
     // ========================================================================
     // Summary
     // ========================================================================

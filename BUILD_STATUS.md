@@ -35,6 +35,21 @@ Low items in NEXT_TASKS.md (server-mode docs, dashboard niceties).
 
 ## Last Completed Work
 
+### 2026-09-10 — Harness Phases 10–11: import history + holdings sync verified
+- Extended `scripts/verify-deployed.mjs`:
+  - **Phase 10 (REQ-023):** the Import & Export page shows the "Recent imports"
+    card listing the OFX/QFX sessions created by Phases 7–8 (Phase 6's
+    replace-restore wipes the CSV ones), with imported/duplicate counts.
+  - **Phase 11 (REQ-031):** on Investments, opens the "Sync from activity" preview
+    modal and asserts the plan proposes **exactly 2 updates, 0 adds/removals**
+    (brokerage VTI 46.5→40 sh / $6,800→$9,800; 401(k) SPY 160→20 sh /
+    $40,000→$9,960), that before→after values and preserved manual prices are
+    shown, then applies and re-reads IndexedDB to confirm the writes and that
+    the 5 holdings without activity are untouched.
+- **105/105 checks pass** on the local build (two consecutive runs) and against
+  the live deployment; no console errors. Phases 1–11 now cover the §48
+  checklist plus REQ-023/REQ-031.
+
 ### 2026-09-10 — REQ-023 import history UI + REQ-031 holdings auto-derivation
 - **REQ-023:** `importSessions` now flows through `AppContext`, and the Import &
   Export page shows a "Recent imports" card (file, type, account, date, imported/
@@ -260,9 +275,9 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
 
-**Next recommended task:** Commit and push the REQ-023/REQ-031 work, re-run the
-harness against the live deployment, then continue the Low backlog: REQ-044
-(ServerRepository doc + stub) and REQ-047 (FinancialDataProvider docs).
+**Next recommended task:** Commit and push the Phase 10–11 harness additions,
+then continue the Low backlog: REQ-044 (ServerRepository doc + stub) and
+REQ-047 (FinancialDataProvider docs).
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
 **Files changed (this session):** `bbc205b` (search-wiring fix + harness search
@@ -270,11 +285,11 @@ checks + audit docs); Phase 8 (rule application on import) in
 `scripts/verify-deployed.mjs`; BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
 
 **Tests run:** `npm test` (163 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (**90/90** on the local build, two consecutive
-runs; **90/90 against the live deployment** after the `18d1cbc` push — Phases
-8–9 are live), plus a live delete/undo check (351 → 301 → 351)
+`node scripts/verify-deployed.mjs` (**105/105** on the local build, two
+consecutive runs, and **against the live deployment** — Phases 10–11 cover
+REQ-023/REQ-031 end to end), plus a live delete/undo check (351 → 301 → 351)
 in a prior session.
 
-**Tests passing:** 163/163. **Tests failing:** 0.
+**Tests passing:** 163/163. **Tests failing:** 0. **Harness checks:** 105/105.
 
 **Important decisions:** see DECISIONS.md (DEC-001..DEC-009).

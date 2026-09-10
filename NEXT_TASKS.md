@@ -49,6 +49,9 @@ is the Medium/Low backlog below)
 > buy/sell/reinvest/split/transfer activity with average-cost accounting and a
 > "Sync from activity" preview modal on the Investments page applies adds/updates/
 > removals. 163 tests; typecheck + build clean.
+> ✅ **Done 2026-09-10:** Both features automated in the verification harness
+> (Phases 10–11) — **105/105 checks** on the local build (twice) and against the
+> live deployment, no console errors.
 
 ## Medium
 

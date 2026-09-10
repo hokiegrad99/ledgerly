@@ -2,6 +2,26 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Import history + holdings sync automated in the verification harness (Phases 10–11)
+
+### Added
+- `scripts/verify-deployed.mjs` **Phase 10 — import session history (REQ-023)**:
+  asserts the Import & Export page shows the "Recent imports" card listing the
+  OFX/QFX sessions recorded by the import phases (with imported/duplicate
+  counts).
+- `scripts/verify-deployed.mjs` **Phase 11 — holdings sync (REQ-031)**: opens the
+  "Sync from activity" preview on Investments and asserts the plan proposes
+  exactly 2 updates and no adds/removals for the sample data (brokerage VTI
+  46.5→40 sh / $6,800→$9,800; 401(k) SPY 160→20 sh / $40,000→$9,960), that the
+  preview shows before→after values with manually entered prices preserved,
+  then applies and re-reads IndexedDB to confirm the writes and that holdings
+  without activity are untouched.
+
+### Verified
+- **105/105 checks pass** on the local build (two consecutive runs) and against
+  the live deployment at https://hokiegrad99.github.io/ledgerly/ — no console
+  errors. REQ-023 and REQ-031 are now verified end to end in production.
+
 ## 2026-09-10 — Import history UI (REQ-023) + holdings auto-derivation (REQ-031)
 
 ### Added
