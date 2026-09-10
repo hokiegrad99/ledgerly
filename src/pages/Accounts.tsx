@@ -17,7 +17,7 @@ const TYPE_ICON: Record<string, string> = {
   crypto: '🪙', 'real-estate': '🏡', 'other-asset': '📦', 'other-liability': '📄',
 };
 
-function AccountFormModal({ open, onClose, account }: { open: boolean; onClose: () => void; account: Account | null }) {
+function AccountFormModal({ open, onClose, account, onDelete }: { open: boolean; onClose: () => void; account: Account | null; onDelete?: () => void }) {
   const { repo, refresh, bumpTxn } = useApp();
   const isNew = !account;
   const [form, setForm] = useState<Account>(() =>
@@ -79,6 +79,9 @@ function AccountFormModal({ open, onClose, account }: { open: boolean; onClose: 
       size="lg"
       footer={
         <>
+          {!isNew && onDelete && (
+            <Button variant="danger" className="mr-auto" onClick={onDelete}>Delete account</Button>
+          )}
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
           <Button variant="primary" onClick={submit} disabled={!form.name.trim()}>
             {isNew ? 'Add account' : 'Save changes'}
@@ -165,6 +168,7 @@ export default function AccountsPage() {
     bumpTxn();
     await refresh();
     setDeleting(null);
+    setEditing(null);
   };
 
   const AccountRow = ({ a }: { a: Account }) => (
@@ -234,7 +238,14 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {modalOpen && <AccountFormModal open={modalOpen} onClose={() => setModalOpen(false)} account={editing} />}
+      {modalOpen && (
+        <AccountFormModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          account={editing}
+          onDelete={editing ? () => { setModalOpen(false); setDeleting(editing); } : undefined}
+        />
+      )}
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}

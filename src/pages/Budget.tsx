@@ -6,12 +6,13 @@ import { Button, Card, CardBody, EmptyState, ProgressBar, Stat, Badge } from '..
 import { AmountInput } from '../components/ui/form';
 import type { Budget, BudgetItem, Category } from '../domain/types';
 import { budgetSummary, budgetRolloverCarryover, spendingByCategory } from '../domain/calculations';
+import { budgetExcludedAccountIds, isExcludedFromBudget } from '../domain/exclusions';
 import { addMonthsToKey, currentMonthKey, formatMonth, monthEnd, monthStart, monthsBetween } from '../lib/dates';
 import { newId, nowISO } from '../lib/id';
 import { formatMoney } from '../lib/money';
 
 export default function BudgetPage() {
-  const { repo, groups, categories, budgetItems, budgets, dataVersion, refresh, bumpTxn } = useApp();
+  const { repo, groups, categories, budgetItems, budgets, accounts, dataVersion, refresh, bumpTxn } = useApp();
   const [month, setMonth] = useState(currentMonthKey());
   const [txns, setTxns] = useState<Awaited<ReturnType<typeof repo.transactionsInRange>>>([]);
   const [prevTxns, setPrevTxns] = useState<Awaited<ReturnType<typeof repo.transactionsInRange>>>([]);
@@ -62,11 +63,16 @@ export default function BudgetPage() {
   const isFlex = budget?.mode === 'flex';
   const mode = budget?.mode ?? 'category';
 
-  const spendByCat = useMemo(() => spendingByCategory(txns, []), [txns]);
+  // Honour the account "include in budget" toggle and rule-based exclusions.
+  const excludedAccountIds = useMemo(() => budgetExcludedAccountIds(accounts), [accounts]);
+  const budgetTxns = useMemo(() => txns.filter((t) => !isExcludedFromBudget(t, excludedAccountIds)), [txns, excludedAccountIds]);
+  const prevBudgetTxns = useMemo(() => prevTxns.filter((t) => !isExcludedFromBudget(t, excludedAccountIds)), [prevTxns, excludedAccountIds]);
+
+  const spendByCat = useMemo(() => spendingByCategory(budgetTxns, []), [budgetTxns]);
   const prevMonth = addMonthsToKey(month, -1);
   const prevBudget = budgets.find((b) => b.month === prevMonth) ?? null;
   const prevBudgetItems = budgetItems.filter((bi) => bi.budgetId === prevBudget?.id);
-  const prevSpendByCat = useMemo(() => spendingByCategory(prevTxns, []), [prevTxns]);
+  const prevSpendByCat = useMemo(() => spendingByCategory(prevBudgetTxns, []), [prevBudgetTxns]);
   const carryover = useMemo(
     () => budgetRolloverCarryover(prevBudgetItems, prevSpendByCat),
     [prevBudgetItems, prevSpendByCat],

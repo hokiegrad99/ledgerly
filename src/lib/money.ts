@@ -54,8 +54,24 @@ export function parseMoney(input: string | number | null | undefined): number | 
   return negative ? -cents : cents;
 }
 
+/**
+ * Default currency used by `formatMoney` when a call site doesn't pass one.
+ * Driven by the user's currency setting so amounts render consistently app-wide.
+ */
+let defaultCurrency = 'USD';
+
+/** Set the app-wide display currency (from user settings). */
+export function setDefaultCurrency(code: string | null | undefined): void {
+  defaultCurrency = code || 'USD';
+}
+
+/** The current app-wide display currency. */
+export function getDefaultCurrency(): string {
+  return defaultCurrency;
+}
+
 /** Convert cents to a display string with the given currency. */
-export function formatMoney(cents: number | null | undefined, currency = 'USD', opts: { compact?: boolean } = {}): string {
+export function formatMoney(cents: number | null | undefined, currency = defaultCurrency, opts: { compact?: boolean } = {}): string {
   if (cents === null || cents === undefined || Number.isNaN(cents)) return '—';
   const value = cents / 100;
   try {

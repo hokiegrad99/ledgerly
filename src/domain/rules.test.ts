@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyRulesToTransaction, evaluateRules, ruleMatches } from './rules';
+import { EXCLUDE_FROM_BUDGET_TAG_ID, EXCLUDE_FROM_REPORTS_TAG_ID, isExcludedFromBudget, isExcludedFromReports } from './exclusions';
 import type { Category, Transaction, TransactionRule } from './types';
 import { newId } from '../lib/id';
 
@@ -155,5 +156,19 @@ describe('evaluateRules', () => {
     expect(mutations.tagIds).toContain('tag-a');
     expect(mutations.tagIds).not.toContain('tag-b');
     expect(mutations.tagIds).toContain('tag-c');
+  });
+
+  it('applies the budget/report exclusion system tags', () => {
+    const rules: TransactionRule[] = [{
+      id: 'r1', name: '', enabled: true, priority: 0,
+      conditions: [{ field: 'merchant', op: 'contains', value: 'amazon' }],
+      actions: [{ kind: 'exclude-from-budget' }, { kind: 'exclude-from-reports' }],
+      createdAt: '', updatedAt: '',
+    }];
+    const { txn: out } = applyRulesToTransaction(rules, txn({}), catOf);
+    expect(out.tagIds).toContain(EXCLUDE_FROM_BUDGET_TAG_ID);
+    expect(out.tagIds).toContain(EXCLUDE_FROM_REPORTS_TAG_ID);
+    expect(isExcludedFromBudget(out)).toBe(true);
+    expect(isExcludedFromReports(out)).toBe(true);
   });
 });

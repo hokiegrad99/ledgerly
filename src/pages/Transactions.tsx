@@ -14,7 +14,7 @@ import { isLiabilityType } from '../domain/types';
 import { formatMoney } from '../lib/money';
 import { newId, nowISO } from '../lib/id';
 import { cashFlow, detectTransferPairs } from '../domain/calculations';
-import { monthKeyOf, todayISO } from '../lib/dates';
+import { formatDate, monthKeyOf, todayISO } from '../lib/dates';
 import { applyRulesToTransaction } from '../domain/rules';
 import { captureDeletion, restoreDeletion, UNDO_WINDOW_MS, type DeleteSnapshot } from '../domain/undo';
 import type { TransactionQuery } from '../data/repository';
@@ -488,6 +488,10 @@ export default function TransactionsPage() {
           <option value="reviewed">Reviewed</option>
           <option value="unreviewed">Unreviewed</option>
         </Select>
+        <Select className="w-auto" value={filters.pending} onChange={(e) => setFilters((f) => ({ ...f, pending: e.target.value }))} aria-label="Filter by pending status">
+          <option value="">Pending: all</option>
+          <option value="pending">Pending only</option>
+        </Select>
         <Select className="w-auto" value={filters.tagId} onChange={(e) => setFilters((f) => ({ ...f, tagId: e.target.value }))} aria-label="Filter by tag">
           <option value="">All tags</option>
           {tags.map((t) => (
@@ -628,7 +632,7 @@ export default function TransactionsPage() {
                       <td>
                         <Checkbox checked={selected.has(t.id)} onChange={() => toggleOne(t.id)} aria-label={`Select ${t.merchant}`} />
                       </td>
-                      <td className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{t.date}</td>
+                      <td className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{formatDate(t.date)}</td>
                       <td>
                         <div className="flex items-center gap-1.5">
                           <button className="max-w-[220px] truncate text-left text-sm font-medium text-slate-900 hover:underline dark:text-slate-100" onClick={() => openEdit(t)} title={t.merchant}>

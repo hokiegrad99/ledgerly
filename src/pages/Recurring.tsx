@@ -9,7 +9,7 @@ import type { RecurringInterval, RecurringTransaction } from '../domain/types';
 import { detectRecurring, upcomingRecurring } from '../domain/calculations';
 import { formatMoney } from '../lib/money';
 import { newId, nowISO } from '../lib/id';
-import { formatMonth, todayISO } from '../lib/dates';
+import { formatDate, formatMonth, todayISO } from '../lib/dates';
 
 const INTERVALS: { value: RecurringInterval; label: string }[] = [
   { value: 'weekly', label: 'Weekly' },
@@ -307,8 +307,8 @@ export default function RecurringPage() {
                         {formatMoney(r.amount)}
                       </td>
                       <td className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{INTERVALS.find((i) => i.value === r.interval)?.label} (day {r.dayOfMonth})</td>
-                      <td className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{r.lastOccurrence ?? '—'}</td>
-                      <td className="whitespace-nowrap text-xs font-medium text-slate-700 dark:text-slate-300">{r.nextOccurrence ?? '—'}</td>
+                      <td className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">{r.lastOccurrence ? formatDate(r.lastOccurrence) : '—'}</td>
+                      <td className="whitespace-nowrap text-xs font-medium text-slate-700 dark:text-slate-300">{r.nextOccurrence ? formatDate(r.nextOccurrence) : '—'}</td>
                       <td>
                         <div className="flex items-center gap-2">
                           <Toggle checked={r.active} onChange={() => void toggleActive(r)} label={`${r.merchant} active`} />

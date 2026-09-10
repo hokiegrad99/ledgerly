@@ -11,7 +11,7 @@ import { formatMoney } from '../lib/money';
 import { newId, nowISO } from '../lib/id';
 import type { Holding, InvestmentTransaction, InvestmentTxType, Security, SecurityType } from '../domain/types';
 import { SECURITY_TYPES, INVESTMENT_TX_TYPES } from '../domain/types';
-import { todayISO } from '../lib/dates';
+import { formatDate, todayISO } from '../lib/dates';
 
 function HoldingFormModal({ open, onClose, holding }: { open: boolean; onClose: () => void; holding: Holding | null }) {
   const { repo, refresh, accounts, securities, bumpTxn } = useApp();
@@ -417,7 +417,7 @@ export default function InvestmentsPage() {
                 <tbody>
                   {[...investmentTransactions].sort((a, b) => b.date.localeCompare(a.date)).map((t) => (
                     <tr key={t.id}>
-                      <td className="whitespace-nowrap text-xs text-slate-500">{t.date}</td>
+                      <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(t.date)}</td>
                       <td><Badge tone="blue">{t.type}</Badge></td>
                       <td className="whitespace-nowrap text-xs">{accountById(t.accountId)?.name ?? '—'}</td>
                       <td className="whitespace-nowrap text-xs">{securities.find((s) => s.id === t.securityId)?.symbol ?? '—'}</td>

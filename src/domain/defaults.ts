@@ -5,6 +5,7 @@
  */
 import type { Category, CategoryGroup, Tag } from './types';
 import { newId, nowISO } from '../lib/id';
+import { EXCLUDE_FROM_BUDGET_TAG_ID, EXCLUDE_FROM_REPORTS_TAG_ID } from './exclusions';
 
 export interface DefaultCategorySeed {
   group: Omit<CategoryGroup, 'id' | 'createdAt' | 'updatedAt'>;
@@ -102,7 +103,7 @@ export function buildDefaultCategorySeed(): { groups: CategoryGroup[]; categorie
 export function systemTags(): Tag[] {
   const now = nowISO();
   return [
-    { id: 'tag-exclude-budget', name: '__exclude_from_budget', createdAt: now, updatedAt: now },
-    { id: 'tag-exclude-reports', name: '__exclude_from_reports', createdAt: now, updatedAt: now },
+    { id: EXCLUDE_FROM_BUDGET_TAG_ID, name: '__exclude_from_budget', createdAt: now, updatedAt: now },
+    { id: EXCLUDE_FROM_REPORTS_TAG_ID, name: '__exclude_from_reports', createdAt: now, updatedAt: now },
   ];
 }

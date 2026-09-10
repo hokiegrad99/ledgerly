@@ -126,8 +126,24 @@ export function parseDate(input: string | number | Date | null | undefined): ISO
   return null;
 }
 
+/**
+ * Default date format used by `formatDate` when a call site doesn't pass one.
+ * Driven by the user's date-format setting.
+ */
+let defaultDateFormat = 'YYYY-MM-DD';
+
+/** Set the app-wide date format (from user settings). */
+export function setDefaultDateFormat(fmt: string | null | undefined): void {
+  defaultDateFormat = fmt || 'YYYY-MM-DD';
+}
+
+/** The current app-wide date format. */
+export function getDefaultDateFormat(): string {
+  return defaultDateFormat;
+}
+
 /** Format an ISO date per user preference. */
-export function formatDate(iso: ISODate | null | undefined, dateFormat = 'YYYY-MM-DD'): string {
+export function formatDate(iso: ISODate | null | undefined, dateFormat = defaultDateFormat): string {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
   switch (dateFormat) {

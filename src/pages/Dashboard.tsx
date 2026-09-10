@@ -16,7 +16,13 @@ import {
   goalProgress,
   portfolioSummary,
 } from '../domain/calculations';
-import { addMonthsToKey, currentMonthKey, monthKeyOf, monthEnd, todayISO } from '../lib/dates';
+import { addMonthsToKey, currentMonthKey, formatDate, monthKeyOf, monthEnd, todayISO } from '../lib/dates';
+import {
+  budgetExcludedAccountIds,
+  reportExcludedAccountIds,
+  isExcludedFromBudget,
+  isExcludedFromReports,
+} from '../domain/exclusions';
 import type { Transaction, DashboardWidget, DashboardWidgetKind } from '../domain/types';
 import { TrendAreaChart, DonutChart, LegendList, CHART_COLORS } from '../components/ui/Charts';
 
@@ -110,6 +116,22 @@ export default function DashboardPage() {
     () => rangeTxns.filter((t) => monthKeyOf(t.date) === prevMonth),
     [rangeTxns, prevMonth],
   );
+  // Account toggles + rule exclusions are honoured per widget (budget vs reports).
+  const excludedBudgetAccounts = useMemo(() => budgetExcludedAccountIds(accounts), [accounts]);
+  const excludedReportAccounts = useMemo(() => reportExcludedAccountIds(accounts), [accounts]);
+  const budgetMonthTxns = useMemo(
+    () => thisMonthTxns.filter((t) => !isExcludedFromBudget(t, excludedBudgetAccounts)),
+    [thisMonthTxns, excludedBudgetAccounts],
+  );
+  const budgetPrevMonthTxns = useMemo(
+    () => prevMonthTxns.filter((t) => !isExcludedFromBudget(t, excludedBudgetAccounts)),
+    [prevMonthTxns, excludedBudgetAccounts],
+  );
+  const reportMonthTxns = useMemo(
+    () => thisMonthTxns.filter((t) => !isExcludedFromReports(t, excludedReportAccounts)),
+    [thisMonthTxns, excludedReportAccounts],
+  );
+
   const ytdStart = `${month.slice(0, 4)}-01-01`;
   const ytdTxns = useMemo(
     () => rangeTxns.filter((t) => t.date >= ytdStart && t.date <= monthEnd(month)),
@@ -120,12 +142,12 @@ export default function DashboardPage() {
   const prevFlow = cashFlow(prevMonthTxns);
   const ytdFlow = cashFlow(ytdTxns);
 
-  const spendByCat = useMemo(() => spendingByCategory(thisMonthTxns, []), [thisMonthTxns]);
+  const spendByCat = useMemo(() => spendingByCategory(budgetMonthTxns, []), [budgetMonthTxns]);
   const budget = budgets.find((b) => b.month === month) ?? null;
   const monthBudgetItems = budgetItems.filter((bi) => bi.budgetId === budget?.id);
   const prevMonthBudget = budgets.find((b) => b.month === prevMonth) ?? null;
   const prevMonthBudgetItems = budgetItems.filter((bi) => bi.budgetId === prevMonthBudget?.id);
-  const prevSpendByCat = useMemo(() => spendingByCategory(prevMonthTxns, []), [prevMonthTxns]);
+  const prevSpendByCat = useMemo(() => spendingByCategory(budgetPrevMonthTxns, []), [budgetPrevMonthTxns]);
   const carryover = useMemo(
     () => budgetRolloverCarryover(prevMonthBudgetItems, prevSpendByCat),
     [prevMonthBudgetItems, prevSpendByCat],
@@ -141,13 +163,18 @@ export default function DashboardPage() {
 
   const portfolio = useMemo(() => portfolioSummary(holdings, securities, accounts), [holdings, securities, accounts]);
 
+  const reportSpendByCat = useMemo(() => spendingByCategory(reportMonthTxns, []), [reportMonthTxns]);
+  const reportExpenses = useMemo(
+    () => reportMonthTxns.reduce((sum, t) => (t.type !== 'transfer' && t.amount < 0 ? sum + -t.amount : sum), 0),
+    [reportMonthTxns],
+  );
   const spendingByCatList = useMemo(
     () =>
-      [...spendByCat.entries()]
+      [...reportSpendByCat.entries()]
         .map(([catId, amount]) => ({ name: categoryById(catId)?.name ?? 'Uncategorized', value: amount }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 8),
-    [spendByCat, categoryById],
+    [reportSpendByCat, categoryById],
   );
 
   const widgets = [...useApp().dashboard].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -219,7 +246,7 @@ export default function DashboardPage() {
         return (
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Stat label="Spending this month" value={formatMoney(thisFlow.expenses)} sub={`${spendingByCatList.length} categories`} />
+              <Stat label="Spending this month" value={formatMoney(reportExpenses)} sub={`${spendingByCatList.length} categories`} />
               <div className="mt-3">
                 <DonutChart data={spendingByCatList} height={150} formatter={(v) => formatMoney(v)} />
               </div>
@@ -264,7 +291,7 @@ export default function DashboardPage() {
               <tbody>
                 {recentTxns.map((t) => (
                   <tr key={t.id}>
-                    <td className="whitespace-nowrap text-xs text-slate-500">{t.date}</td>
+                    <td className="whitespace-nowrap text-xs text-slate-500">{formatDate(t.date)}</td>
                     <td className="max-w-[180px] truncate text-sm font-medium text-slate-900 dark:text-slate-100">{t.merchant}</td>
                     <td className="whitespace-nowrap text-xs text-slate-500">{accountById(t.accountId)?.name ?? '—'}</td>
                     <td className="whitespace-nowrap text-xs">{categoryById(t.categoryId)?.name ?? (t.type === 'transfer' ? 'Transfer' : '—')}</td>
@@ -285,7 +312,7 @@ export default function DashboardPage() {
               <div key={`${r.id}-${date}`} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800">
                 <div>
                   <div className="text-sm font-medium text-slate-800 dark:text-slate-100">{r.merchant}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{date} · {r.interval}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{formatDate(date)} · {r.interval}</div>
                 </div>
                 <span className={r.amount < 0 ? 'text-sm font-semibold text-slate-900 dark:text-slate-100' : 'text-sm font-semibold text-emerald-600 dark:text-emerald-400'}>
                   {formatMoney(r.amount)}

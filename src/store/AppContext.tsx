@@ -29,7 +29,8 @@ import { DEFAULT_SETTINGS } from '../domain/types';
 import type { DataRepository } from '../data/repository';
 import { IndexedDBRepository } from '../data/indexeddb-repository';
 import { buildDefaultCategorySeed } from '../domain/defaults';
-import { todayISO } from '../lib/dates';
+import { setDefaultDateFormat, todayISO } from '../lib/dates';
+import { setDefaultCurrency } from '../lib/money';
 
 export interface DataVersion {
   /** Bumped whenever reference data changes. */
@@ -159,13 +160,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDashboard(dash);
     setSavedReports(reports);
     setImportMappings(mappings);
-    if (st) {
-      setSettings({ ...DEFAULT_SETTINGS, ...st });
-      applyTheme({ ...DEFAULT_SETTINGS, ...st });
-    } else {
-      setSettings(DEFAULT_SETTINGS);
-      applyTheme(DEFAULT_SETTINGS);
-    }
+    const merged = st ? { ...DEFAULT_SETTINGS, ...st } : DEFAULT_SETTINGS;
+    setSettings(merged);
+    applyTheme(merged);
+    // Settings drive app-wide formatting defaults (REQ-039).
+    setDefaultCurrency(merged.currency);
+    setDefaultDateFormat(merged.dateFormat);
     const count = await repo.stats().then((s) => s.transactionCount).catch(() => 0);
     setTransactionCount(count);
     setDataVersion((v) => ({ ...v, ref: v.ref + 1 }));
@@ -181,6 +181,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const next = { ...settings, ...patch };
       setSettings(next);
       applyTheme(next);
+      setDefaultCurrency(next.currency);
+      setDefaultDateFormat(next.dateFormat);
       await repo.saveSettings(next);
       setDataVersion((v) => ({ ...v, ref: v.ref + 1 }));
     },

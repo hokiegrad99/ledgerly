@@ -4,7 +4,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Button, Card, CardBody, EmptyState, Badge } from '../components/ui/basic';
 import { Select, Input } from '../components/ui/form';
 import { Modal, ConfirmDialog } from '../components/ui/Modal';
-import { Download, Save, Copy, Trash2, Search, ArrowRight } from 'lucide-react';
+import { Download, Save, Copy, Trash2, Search, ArrowRight, Pencil } from 'lucide-react';
 import { formatMoney } from '../lib/money';
 import { newId, nowISO } from '../lib/id';
 import { currentMonthKey, monthStart, addMonthsToKey, monthKeyOf, todayISO } from '../lib/dates';
@@ -17,6 +17,7 @@ import {
   netWorthFromAccounts,
 } from '../domain/calculations';
 import { MoneyBarChart, TrendAreaChart, SimpleLineChart, LegendList, CHART_COLORS } from '../components/ui/Charts';
+import { reportExcludedAccountIds, isExcludedFromReports } from '../domain/exclusions';
 import type { ReportFilters, SavedReport, Transaction } from '../domain/types';
 
 interface ReportDef {
@@ -64,6 +65,8 @@ export default function ReportsPage() {
   const [saveModal, setSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [deleteReport, setDeleteReport] = useState<SavedReport | null>(null);
+  const [renameReport, setRenameReport] = useState<SavedReport | null>(null);
+  const [renameName, setRenameName] = useState('');
 
   const month = currentMonthKey();
   const defaultFrom = monthStart(addMonthsToKey(month, -2));
@@ -92,6 +95,9 @@ export default function ReportsPage() {
     };
   }, [repo, filters, dataVersion.txn]);
 
+  // Accounts flagged "exclude from reports" are filtered out below.
+  const excludedAccountIds = useMemo(() => reportExcludedAccountIds(accounts), [accounts]);
+
   const filtered = useMemo(() => {
     return txns.filter((t) => {
       if (filters.accountIds && filters.accountIds.length > 0 && !filters.accountIds.includes(t.accountId)) return false;
@@ -103,9 +109,11 @@ export default function ReportsPage() {
       if (filters.merchant && !(t.merchant || '').toLowerCase().includes(filters.merchant.toLowerCase())) return false;
       if (filters.tagIds && filters.tagIds.length > 0 && !filters.tagIds.some((tg) => t.tagIds?.includes(tg))) return false;
       if (filters.type && t.type !== filters.type) return false;
+      // Honour the account "include in reports" toggle and rule-based exclusions.
+      if (isExcludedFromReports(t, excludedAccountIds)) return false;
       return true;
     });
-  }, [txns, filters, categories]);
+  }, [txns, filters, categories, excludedAccountIds]);
 
   const filteredSplits = useMemo(() => splits.filter((s) => filtered.some((t) => t.id === s.transactionId)), [splits, filtered]);
 
@@ -379,6 +387,17 @@ export default function ReportsPage() {
     setDeleteReport(null);
   };
 
+  const renameSaved = async () => {
+    if (!renameReport) return;
+    const name = renameName.trim();
+    if (!name) return;
+    await repo.saveSavedReport({ ...renameReport, name, updatedAt: nowISO() });
+    bumpTxn();
+    await refresh();
+    setRenameReport(null);
+    setRenameName('');
+  };
+
   const filterPanel = (
     <Card className="mb-4">
       <CardBody className="space-y-3">
@@ -487,6 +506,9 @@ export default function ReportsPage() {
                   <button className="btn-ghost p-1.5" onClick={() => void duplicateSaved(r)} aria-label={`Duplicate ${r.name}`}>
                     <Copy className="h-4 w-4" />
                   </button>
+                  <button className="btn-ghost p-1.5" onClick={() => { setRenameReport(r); setRenameName(r.name); }} aria-label={`Rename ${r.name}`}>
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   <button className="btn-ghost p-1.5 text-red-500" onClick={() => setDeleteReport(r)} aria-label={`Delete ${r.name}`}>
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -507,6 +529,17 @@ export default function ReportsPage() {
       >
         <label className="label">Report name</label>
         <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g. Monthly groceries" autoFocus />
+      </Modal>
+      <Modal open={!!renameReport} onClose={() => setRenameReport(null)} title="Rename report" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRenameReport(null)}>Cancel</Button>
+            <Button variant="primary" onClick={() => void renameSaved()}>Save</Button>
+          </>
+        }
+      >
+        <label className="label">Report name</label>
+        <Input value={renameName} onChange={(e) => setRenameName(e.target.value)} autoFocus />
       </Modal>
       <ConfirmDialog
         open={!!deleteReport}

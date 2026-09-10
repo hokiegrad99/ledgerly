@@ -7,6 +7,7 @@
  * malformed conditions simply don't match.
  */
 import type { Category, RuleCondition, Transaction, TransactionRule } from './types';
+import { EXCLUDE_FROM_BUDGET_TAG_ID, EXCLUDE_FROM_REPORTS_TAG_ID } from './exclusions';
 
 const CONTAINS_OPS = new Set(['contains', 'not-contains', 'equals', 'starts-with', 'ends-with']);
 const NUMERIC_OPS = new Set(['gt', 'lt']);
@@ -103,10 +104,12 @@ export function applyRuleActions(rule: TransactionRule): RuleApplicationResult['
         changes.reviewed = true;
         break;
       case 'exclude-from-budget':
+        // Expressed as the system tag so it survives backup/restore and is honoured
+        // by the budget/report exclusion checks.
+        if (!changes.addTagIds.includes(EXCLUDE_FROM_BUDGET_TAG_ID)) changes.addTagIds.push(EXCLUDE_FROM_BUDGET_TAG_ID);
+        break;
       case 'exclude-from-reports':
-        // These are expressed via a special system tag so they survive round-trips.
-        const tagName = action.kind === 'exclude-from-budget' ? '__exclude_from_budget' : '__exclude_from_reports';
-        changes.addTagIds.push(tagName);
+        if (!changes.addTagIds.includes(EXCLUDE_FROM_REPORTS_TAG_ID)) changes.addTagIds.push(EXCLUDE_FROM_REPORTS_TAG_ID);
         break;
     }
   }
@@ -139,15 +142,11 @@ export function evaluateRules(
     removeTagIds.push(...changes.removeTagIds);
   }
 
-  // Tag actions: apply add-tags (skipping system tags — those are handled via tag lookup elsewhere),
-  // and remove-tags. System exclusion tags are kept out of this layer: they're resolved by callers
-  // that know the actual tag table.
-  const realAdds = addTagIds.filter((t) => !t.startsWith('__'));
-  const realRemoves = removeTagIds.filter((t) => !t.startsWith('__'));
-  if (realAdds.length > 0 || realRemoves.length > 0) {
+  // Tag actions (including the exclusion system tags) are applied by id.
+  if (addTagIds.length > 0 || removeTagIds.length > 0) {
     const tags = new Set(txn.tagIds);
-    for (const t of realRemoves) tags.delete(t);
-    for (const t of realAdds) tags.add(t);
+    for (const t of removeTagIds) tags.delete(t);
+    for (const t of addTagIds) tags.add(t);
     result.tagIds = [...tags];
   }
   return { applied, mutations: result };
@@ -171,12 +170,12 @@ export function applyRulesToTransaction(
   return { txn: updated, applied };
 }
 
-/** Resolve an exclusion system tag into its meaning. */
-export function parseExclusionTags(tagNames: string[]): { excludeFromBudget: boolean; excludeFromReports: boolean } {
+/** Resolve exclusion system tags (by id) into their meaning. */
+export function parseExclusionTags(tagIds: string[]): { excludeFromBudget: boolean; excludeFromReports: boolean } {
   return {
-    excludeFromBudget: tagNames.includes('__exclude_from_budget'),
-    excludeFromReports: tagNames.includes('__exclude_from_reports'),
+    excludeFromBudget: tagIds.includes(EXCLUDE_FROM_BUDGET_TAG_ID),
+    excludeFromReports: tagIds.includes(EXCLUDE_FROM_REPORTS_TAG_ID),
   };
 }
 
-export const EXCLUSION_TAG_NAMES = ['__exclude_from_budget', '__exclude_from_reports'] as const;
+export const EXCLUSION_TAG_IDS = [EXCLUDE_FROM_BUDGET_TAG_ID, EXCLUDE_FROM_REPORTS_TAG_ID] as const;

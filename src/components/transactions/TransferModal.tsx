@@ -6,7 +6,7 @@ import { Button, Card, EmptyState } from '../ui/basic';
 import { Field, Select } from '../ui/form';
 import type { Transaction } from '../../domain/types';
 import { formatMoney } from '../../lib/money';
-import { diffDays } from '../../lib/dates';
+import { diffDays, formatDate } from '../../lib/dates';
 
 /**
  * Transfer linking:
@@ -125,7 +125,7 @@ export function TransferModal({
                 >
                   <span className="truncate">
                     <span className="font-medium text-slate-800 dark:text-slate-100">{c.merchant}</span>
-                    <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{c.date}</span>
+                    <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">{formatDate(c.date)}</span>
                     {Math.abs(diffDays(c.date, transaction.date)) > 1 && (
                       <span className="ml-2 text-[11px] text-amber-600 dark:text-amber-400">
                         {diffDays(c.date, transaction.date)}d apart

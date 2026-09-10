@@ -106,6 +106,20 @@ describe('IndexedDBRepository', () => {
     expect(res3.items[0].merchant).toBe('Shell Gas');
   });
 
+  it('searches by category name and account name (REQ-035)', async () => {
+    await repo.saveAccount(account({ id: 'acc1', name: 'Travel Rewards Card' }));
+    await repo.saveCategory({ id: 'cat-travel', groupId: 'g1', name: 'Vacation Fund', sortOrder: 1, archived: false, createdAt: '', updatedAt: '' });
+    await repo.saveTransactions([
+      txn({ accountId: 'acc1', merchant: 'Delta Airlines', categoryId: 'cat-travel' }),
+      txn({ accountId: 'acc1', merchant: 'Shell Gas', categoryId: null }),
+    ]);
+    const byCategory = await repo.queryTransactions({ search: 'vacation' });
+    expect(byCategory.total).toBe(1);
+    expect(byCategory.items[0].merchant).toBe('Delta Airlines');
+    const byAccount = await repo.queryTransactions({ search: 'rewards' });
+    expect(byAccount.total).toBe(2);
+  });
+
   it('deletes transactions and their splits', async () => {
     await repo.saveAccount(account({ id: 'acc1' }));
     const t = txn({ accountId: 'acc1' });

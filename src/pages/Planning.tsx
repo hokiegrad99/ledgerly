@@ -7,7 +7,7 @@ import { Modal } from '../components/ui/Modal';
 import { Calculator } from 'lucide-react';
 import { formatMoney } from '../lib/money';
 import { newId, nowISO } from '../lib/id';
-import { todayISO, currentMonthKey, addMonthsToKey, monthEnd } from '../lib/dates';
+import { formatDate, todayISO, currentMonthKey, addMonthsToKey, monthEnd } from '../lib/dates';
 import { payoffSchedule, upcomingRecurring } from '../domain/calculations';
 import type { Liability } from '../domain/types';
 import { SimpleLineChart } from '../components/ui/Charts';
@@ -192,7 +192,7 @@ function LiabilityPlan({ liability, onEdit, balance }: { liability: Liability; o
                 <tbody>
                   {schedule.slice(0, 36).map((r) => (
                     <tr key={r.month}>
-                      <td className="text-xs text-slate-500">{r.date}</td>
+                      <td className="text-xs text-slate-500">{formatDate(r.date)}</td>
                       <td className="text-right text-xs">{formatMoney(r.payment)}</td>
                       <td className="text-right text-xs">{formatMoney(r.interestPaid)}</td>
                       <td className="text-right text-xs font-medium">{formatMoney(r.remainingBalance)}</td>

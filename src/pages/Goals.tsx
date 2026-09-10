@@ -8,6 +8,7 @@ import { Modal, ConfirmDialog } from '../components/ui/Modal';
 import type { Goal, GoalType } from '../domain/types';
 import { goalProgress } from '../domain/calculations';
 import { formatMoney } from '../lib/money';
+import { formatDate } from '../lib/dates';
 import { newId, nowISO } from '../lib/id';
 
 const GOAL_TYPES: { value: GoalType; label: string; icon: string }[] = [
@@ -230,7 +231,7 @@ export default function GoalsPage() {
                   <div className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800">
                     <div className="text-slate-500 dark:text-slate-400">Target date</div>
                     <div className="mt-0.5 font-semibold text-slate-900 dark:text-slate-100">
-                      {goal.targetDate ?? 'No target date'}
+                      {goal.targetDate ? formatDate(goal.targetDate) : 'No target date'}
                       {goal.targetDate && !onTrack && <span className="ml-1 text-red-500">(behind)</span>}
                     </div>
                   </div>

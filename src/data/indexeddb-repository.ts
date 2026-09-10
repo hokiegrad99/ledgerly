@@ -168,12 +168,21 @@ export class IndexedDBRepository implements DataRepository {
 
     let rows = await promise;
 
-    // Resolve tag names → ids once so free-text search can match tags too (ISSUE-003).
-    let tagIdHits: Set<string> | null = null;
+    // Resolve tag/category/account names → ids once so free-text search can match
+    // those too, not just merchant/description/notes (REQ-035, ISSUE-003).
+    let searchHits: { tagIds: Set<string>; categoryIds: Set<string>; accountIds: Set<string> } | null = null;
     if (q.search) {
       const s = q.search.toLowerCase();
-      const hits = await db.tags.filter((tag) => tag.name.toLowerCase().includes(s)).toArray();
-      if (hits.length > 0) tagIdHits = new Set(hits.map((h) => h.id));
+      const [tagHits, catHits, acctHits] = await Promise.all([
+        db.tags.filter((tag) => tag.name.toLowerCase().includes(s)).toArray(),
+        db.categories.filter((cat) => cat.name.toLowerCase().includes(s)).toArray(),
+        db.accounts.filter((acct) => acct.name.toLowerCase().includes(s)).toArray(),
+      ]);
+      searchHits = {
+        tagIds: new Set(tagHits.map((h) => h.id)),
+        categoryIds: new Set(catHits.map((h) => h.id)),
+        accountIds: new Set(acctHits.map((h) => h.id)),
+      };
     }
 
     rows = rows.filter((t) => {
@@ -189,8 +198,12 @@ export class IndexedDBRepository implements DataRepository {
       if (q.search) {
         const s = q.search.toLowerCase();
         const hay = `${t.merchant} ${t.originalDescription} ${t.notes}`.toLowerCase();
-        const tagHit = tagIdHits !== null && !!t.tagIds?.some((id) => tagIdHits.has(id));
-        if (!hay.includes(s) && !tagHit) return false;
+        const related =
+          searchHits !== null &&
+          (!!t.tagIds?.some((id) => searchHits!.tagIds.has(id)) ||
+            (t.categoryId ? searchHits.categoryIds.has(t.categoryId) : false) ||
+            searchHits.accountIds.has(t.accountId));
+        if (!hay.includes(s) && !related) return false;
       }
       return true;
     });

@@ -12,6 +12,7 @@ import { normalizeCsvRows, normalizeOfxTransactions, MAPPABLE_FIELDS, AMOUNT_FIE
 import { findDuplicates } from '../domain/duplicates';
 import { buildBackup, parseBackup, countRecords, backupFileName, type BackupData } from '../domain/backup';
 import { formatMoney } from '../lib/money';
+import { formatDate } from '../lib/dates';
 import { newId, nowISO } from '../lib/id';
 import type { ImportMapping, Transaction } from '../domain/types';
 import { applyRulesToTransaction } from '../domain/rules';
@@ -422,7 +423,7 @@ function CsvWizard() {
                     {normalized.slice(0, 20).map(({ rowIndex, transaction, error: e }) => (
                       <tr key={rowIndex}>
                         <td className="text-xs text-slate-400">#{rowIndex + 1}</td>
-                        <td className="whitespace-nowrap text-xs">{transaction.date}</td>
+                        <td className="whitespace-nowrap text-xs">{formatDate(transaction.date)}</td>
                         <td className="max-w-[240px] truncate text-sm">{transaction.merchant}</td>
                         <td className="whitespace-nowrap text-xs">{transaction.categoryId ? categoryById(transaction.categoryId)?.name : '—'}</td>
                         <td className={`whitespace-nowrap text-right text-sm font-semibold ${transaction.amount < 0 ? 'text-slate-900 dark:text-slate-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
@@ -506,8 +507,8 @@ function DuplicateWarnings({ candidates }: { candidates: { rowIndex: number; tra
           <tbody>
             {matches.matches.slice(0, 20).map((m, i) => (
               <tr key={i}>
-                <td className="text-xs">{m.candidate.date} · {m.candidate.merchant} · {formatMoney(m.candidate.amount)}</td>
-                <td className="text-xs">{m.existing.date} · {m.existing.merchant} · {formatMoney(m.existing.amount)}</td>
+                <td className="text-xs">{formatDate(m.candidate.date)} · {m.candidate.merchant} · {formatMoney(m.candidate.amount)}</td>
+                <td className="text-xs">{formatDate(m.existing.date)} · {m.existing.merchant} · {formatMoney(m.existing.amount)}</td>
                 <td><Badge tone="amber">{m.reason}</Badge></td>
               </tr>
             ))}
@@ -672,7 +673,7 @@ function OfxWizard() {
                 <tbody>
                   {parsed.transactions.slice(0, 50).map((t, i) => (
                     <tr key={i}>
-                      <td className="whitespace-nowrap text-xs">{t.date}</td>
+                      <td className="whitespace-nowrap text-xs">{formatDate(t.date)}</td>
                       <td className="max-w-[200px] truncate text-sm">{t.name}</td>
                       <td className="max-w-[160px] truncate text-xs text-slate-500">{t.memo}</td>
                       <td className={`whitespace-nowrap text-right text-sm font-semibold ${t.amount < 0 ? 'text-slate-900 dark:text-slate-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
