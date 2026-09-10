@@ -9,6 +9,7 @@ import {
   netWorthFromAccounts,
   cashFlow,
   budgetSummary,
+  budgetRolloverCarryover,
   spendingByCategory,
   netWorthHistory,
   upcomingRecurring,
@@ -122,7 +123,17 @@ export default function DashboardPage() {
   const spendByCat = useMemo(() => spendingByCategory(thisMonthTxns, []), [thisMonthTxns]);
   const budget = budgets.find((b) => b.month === month) ?? null;
   const monthBudgetItems = budgetItems.filter((bi) => bi.budgetId === budget?.id);
-  const bSummary = useMemo(() => budgetSummary(budget, monthBudgetItems, spendByCat), [budget, monthBudgetItems, spendByCat]);
+  const prevMonthBudget = budgets.find((b) => b.month === prevMonth) ?? null;
+  const prevMonthBudgetItems = budgetItems.filter((bi) => bi.budgetId === prevMonthBudget?.id);
+  const prevSpendByCat = useMemo(() => spendingByCategory(prevMonthTxns, []), [prevMonthTxns]);
+  const carryover = useMemo(
+    () => budgetRolloverCarryover(prevMonthBudgetItems, prevSpendByCat),
+    [prevMonthBudgetItems, prevSpendByCat],
+  );
+  const bSummary = useMemo(
+    () => budgetSummary(budget, monthBudgetItems, spendByCat, carryover),
+    [budget, monthBudgetItems, spendByCat, carryover],
+  );
 
   const upcoming = useMemo(() => upcomingRecurring(recurring, 1).slice(0, 6), [recurring]);
 

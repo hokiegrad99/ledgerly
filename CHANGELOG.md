@@ -2,6 +2,27 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Budget rollover carry-forward (REQ-026)
+
+### Added
+- `budgetRolloverCarryover` pure function: previous month's signed remainder
+  (amount − spent) per rollover category.
+- `budgetSummary` accepts an optional carryover map — carried surplus adds to a
+  category's budget, deficits subtract, and carry-only categories (not budgeted
+  this month) appear in the summary.
+- Budget page: per-category "Rollover" toggle (persisted), carried-over amounts
+  shown under each row's Budgeted input, previous month's spending fetched to
+  compute carry.
+- Dashboard budget widget includes rollover carry-forward.
+
+### Fixed
+- ISSUE-001: unused rollover budget now carries into the next month (surplus
+  adds, deficit subtracts).
+
+### Tests
+- 7 new unit tests: carry-forward math (surplus/deficit/zero), summary
+  integration, and carry-only categories. Total 126 passing.
+
 ## 2026-09-10
 
 ### Added

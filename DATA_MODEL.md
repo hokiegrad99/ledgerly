@@ -82,7 +82,8 @@ Action kinds: `set-category`, `set-merchant`, `add-tag`, `remove-tag`,
 - `Budget`: `id`, `month` (YYYY-MM), `mode` (`category` | `flex`),
   `flexAmount` (cents, flex mode).
 - `BudgetItem`: `id`, `budgetId → Budget`, `categoryId`, `amount` (cents/month),
-  `rollover` (flag; carry-forward math pending — see KNOWN_ISSUES ISSUE-001).
+  `rollover` (flag; when set, the unused remainder carries into the next month's
+  budget — see `budgetRolloverCarryover` in `src/domain/calculations.ts`).
 
 ### Goal
 `id`, `name`, `type` (savings/emergency-fund/vacation/home-purchase/

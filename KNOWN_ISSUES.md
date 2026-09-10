@@ -6,14 +6,17 @@ Never silently ignore known problems — log them here.
 ## ISSUE-001
 - **Title:** Budget rollover carry-forward is stored but not computed
 - **Severity:** Medium
-- **Status:** OPEN
+- **Status:** FIXED
 - **Affected requirement:** REQ-026
 - **Steps to reproduce:** Mark a category with "rollover", end a month under budget,
   move to the next month — the unused amount is not added to next month's budget.
 - **Expected:** Unused budget with rollover=true carries forward.
 - **Actual:** The flag is persisted; carry-forward math is not implemented.
-- **Proposed fix:** In `budgetSummary` or the Budget page, compute previous month's
-  remaining (only rollover items) and add to current month's budgeted value; add tests.
+- **Resolution:** Added `budgetRolloverCarryover` (pure function returning the previous
+  month's signed remainder per rollover category) and carryover support in `budgetSummary`;
+  the Budget page computes carry from the previous month (surplus adds, deficit subtracts),
+  shows carried amounts per row, and exposes a per-category rollover toggle. The Dashboard
+  budget widget includes carry-forward. Covered by 7 unit tests.
 
 ## ISSUE-002
 - **Title:** PWA offline behavior verified only at build level

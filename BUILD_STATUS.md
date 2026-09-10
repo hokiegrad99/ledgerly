@@ -6,7 +6,7 @@
 
 ## Overall Progress
 
-Completion: **64%** (32 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
+Completion: **66%** (33 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
 
 ### Requirements by status
 
@@ -14,14 +14,14 @@ Completion: **64%** (32 of 50 requirements verified; DEFERRED/NOT_STARTED server
 |---|---|
 | NOT_STARTED | 5 |
 | IN_PROGRESS | 0 |
-| IMPLEMENTED | 13 |
+| IMPLEMENTED | 12 |
 | TESTING | 0 |
-| VERIFIED | 32 |
+| VERIFIED | 33 |
 | BLOCKED | 0 |
 | DEFERRED | 0 |
 | **Total** | **50** |
 
-Completion Percentage = VERIFIED / total active requirements × 100 = 32/50 = 64%.
+Completion Percentage = VERIFIED / total active requirements × 100 = 33/50 = 66%.
 *(Run `npm run project:status` to regenerate live numbers.)*
 
 ## Current Development Phase
@@ -34,6 +34,15 @@ acceptance pass per section 48 of the specification) and close the
 PWA/offline verification gap.
 
 ## Last Completed Work
+
+### 2026-09-10 — Budget rollover carry-forward (REQ-026)
+- Added `budgetRolloverCarryover` (pure function: previous month's signed remainder
+  per rollover category) and carryover support in `budgetSummary` (surplus adds,
+  deficit subtracts; carry-only categories included).
+- Budget page: per-category "Rollover" toggle (persisted), carried amounts shown per
+  row, previous month's spending fetched for carry computation.
+- Dashboard budget widget includes carry-forward.
+- 7 new unit tests; ISSUE-001 closed (FIXED); REQ-026 marked VERIFIED.
 
 ### 2026-09-10 — Initial full build
 - Scaffolded Vite + React + TypeScript + Tailwind project.
@@ -49,7 +58,7 @@ PWA/offline verification gap.
 - Sample dataset (fictional, ~300 transactions).
 - 119 automated tests passing; typecheck clean; production build succeeds.
 
-**Requirements verified:** REQ-001..005, 008, 010..022, 024, 027..030, 032, 033, 036..040, 048
+**Requirements verified:** REQ-001..005, 008, 010..022, 024, 026, 027..030, 032, 033, 036..040, 048
 
 ## Current Work
 
@@ -63,15 +72,23 @@ PWA/offline verification gap.
 1. Deploy to GitHub Pages and run the section-48 acceptance checklist in a real browser.
 2. Verify PWA install/offline (REQ-041) and mark VERIFIED.
 3. Verify responsive layouts at 375/768/1024/1440 (REQ-006) and mark VERIFIED.
-4. Implement REQ-026 rollover carry-forward computation (currently flag-only).
-5. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
-6. Update documentation as the above land.
+4. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
+5. Update documentation as the above land.
 
 ## SESSION HANDOFF
 
-**Last session:** 2026-09-10 (initial build)
+**Last session:** 2026-09-10 (budget rollover carry-forward, REQ-026)
 
-**What was accomplished:**
+**What was accomplished (this session):**
+- Implemented budget rollover carry-forward: `budgetRolloverCarryover` computes the
+  previous month's signed remainder per rollover category; `budgetSummary` adds carried
+  surplus / subtracts deficits and includes carry-only categories.
+- Budget page: per-category "Rollover" toggle (persisted), carried amounts shown per row,
+  previous-month spending fetched for carry computation.
+- Dashboard budget widget includes carry-forward.
+- 7 new unit tests (126 total); ISSUE-001 closed; REQ-026 marked VERIFIED (66% overall).
+
+**What was accomplished (initial build):**
 - Complete local-first personal finance app: accounts, transactions (search/filter/
   bulk/split/transfers/duplicate), categories/tags, rules, CSV + QFX/OFX imports with
   duplicate detection, budgets (category + flex), goals, recurring (auto-detect + calendar),
@@ -84,24 +101,25 @@ PWA/offline verification gap.
 **What remains unfinished:**
 - PWA offline behavior verified only at build level, not in a live browser.
 - Manual acceptance pass (spec §48) not yet executed against a deployed instance.
-- REQ-026 rollover carry-forward: flag stored, carry-forward math not implemented.
 - Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
 
 **Current implementation state:**
 - `npm run typecheck` — PASS
-- `npm test` — PASS (119 tests)
+- `npm test` — PASS (126 tests)
 - `npm run build` — PASS (dist/ with PWA service worker)
 - `npm run project:status` — reports requirements/tests/build/known-issues.
 
-**Known problems:** see KNOWN_ISSUES.md (5 open, none critical).
+**Known problems:** see KNOWN_ISSUES.md (4 open, none critical; ISSUE-001 fixed).
 
 **Next recommended task:** Deploy to GitHub Pages and execute the acceptance checklist;
 verify PWA offline; mark REQ-041/REQ-006 VERIFIED.
 
-**Files changed:** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
+**Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
+**Files changed (this session):** `src/domain/calculations.ts`, `src/domain/calculations.test.ts`,
+`src/pages/Budget.tsx`, `src/pages/Dashboard.tsx`, tracking docs.
 
-**Tests run:** `npm test` (119 passing), `npm run typecheck`, `npm run build`.
+**Tests run:** `npm test` (126 passing), `npm run typecheck`, `npm run build`.
 
-**Tests passing:** 119/119. **Tests failing:** 0.
+**Tests passing:** 126/126. **Tests failing:** 0.
 
 **Important decisions:** see DECISIONS.md (DEC-001..DEC-009).

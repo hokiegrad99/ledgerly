@@ -68,11 +68,14 @@ export function cashFlow(transactions: Transaction[], opts: { excludeTransfers?:
 
 export interface CategoryBudgetSummary {
   categoryId: string;
+  /** Effective budget for the month: budgeted amount + carried-over amount. */
   budgeted: number;
   spent: number;
   remaining: number;
   percentUsed: number;
   rollover: boolean;
+  /** Amount carried in from the previous month (positive = surplus, negative = deficit). */
+  carryover: number;
 }
 
 export interface BudgetSummary {
@@ -87,13 +90,40 @@ export interface BudgetSummary {
 }
 
 /**
+ * Compute the amount carried into a month's budget from the previous month.
+ *
+ * For each previous-month budget item with `rollover: true`, the signed
+ * remainder (`amount - spent`) carries forward: a positive remainder adds to
+ * next month's budget, a negative remainder (overspend) reduces it. Returns a
+ * map of categoryId -> carryover cents (categories with no remainder omitted).
+ */
+export function budgetRolloverCarryover(
+  prevBudgetItems: BudgetItem[],
+  prevSpendingByCategory: Map<string, number>,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const bi of prevBudgetItems) {
+    if (!bi.rollover) continue;
+    const spent = prevSpendingByCategory.get(bi.categoryId) ?? 0;
+    const remaining = bi.amount - spent;
+    if (remaining !== 0) out.set(bi.categoryId, remaining);
+  }
+  return out;
+}
+
+/**
  * Compute a budget summary for a month.
  * `spendingByCategory` maps categoryId -> absolute expense cents (transfers excluded).
+ * `carryover` (optional) maps categoryId -> cents carried in from the previous
+ * month (see `budgetRolloverCarryover`); it is added to each category's budgeted
+ * amount. Categories with carryover but no current-month budget item are included
+ * so carried money remains visible and counted.
  */
 export function budgetSummary(
   budget: Budget | null,
   budgetItems: BudgetItem[],
   spendingByCategory: Map<string, number>,
+  carryover?: Map<string, number>,
 ): BudgetSummary {
   const catMap = new Map<string, CategoryBudgetSummary>();
   let totalBudgeted = 0;
@@ -101,19 +131,42 @@ export function budgetSummary(
   let nonBudgetedSpending = 0;
 
   for (const bi of budgetItems) {
+    const carry = carryover?.get(bi.categoryId) ?? 0;
     const spent = spendingByCategory.get(bi.categoryId) ?? 0;
-    const remaining = bi.amount - spent;
+    const effective = bi.amount + carry;
+    const remaining = effective - spent;
     const item: CategoryBudgetSummary = {
       categoryId: bi.categoryId,
-      budgeted: bi.amount,
+      budgeted: effective,
       spent,
       remaining,
-      percentUsed: bi.amount > 0 ? Math.min(100, Math.round((spent / bi.amount) * 1000) / 10) : spent > 0 ? 100 : 0,
+      percentUsed: effective > 0 ? Math.min(100, Math.round((spent / effective) * 1000) / 10) : spent > 0 ? 100 : 0,
       rollover: bi.rollover,
+      carryover: carry,
     };
     catMap.set(bi.categoryId, item);
-    totalBudgeted += bi.amount;
+    totalBudgeted += effective;
     totalSpent += spent;
+  }
+
+  // Categories not budgeted this month but with money carried in.
+  if (carryover) {
+    for (const [catId, carry] of carryover) {
+      if (carry === 0 || catMap.has(catId)) continue;
+      const spent = spendingByCategory.get(catId) ?? 0;
+      const item: CategoryBudgetSummary = {
+        categoryId: catId,
+        budgeted: carry,
+        spent,
+        remaining: carry - spent,
+        percentUsed: carry > 0 ? Math.min(100, Math.round((spent / carry) * 1000) / 10) : spent > 0 ? 100 : 0,
+        rollover: true,
+        carryover: carry,
+      };
+      catMap.set(catId, item);
+      totalBudgeted += carry;
+      totalSpent += spent;
+    }
   }
 
   for (const [catId, spent] of spendingByCategory) {

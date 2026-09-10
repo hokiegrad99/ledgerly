@@ -5,7 +5,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Button, Card, CardBody, EmptyState, ProgressBar, Stat, Badge } from '../components/ui/basic';
 import { AmountInput } from '../components/ui/form';
 import type { Budget, BudgetItem, Category } from '../domain/types';
-import { budgetSummary, spendingByCategory } from '../domain/calculations';
+import { budgetSummary, budgetRolloverCarryover, spendingByCategory } from '../domain/calculations';
 import { addMonthsToKey, currentMonthKey, formatMonth, monthEnd, monthStart, monthsBetween } from '../lib/dates';
 import { newId, nowISO } from '../lib/id';
 import { formatMoney } from '../lib/money';
@@ -14,7 +14,9 @@ export default function BudgetPage() {
   const { repo, groups, categories, budgetItems, budgets, dataVersion, refresh, bumpTxn } = useApp();
   const [month, setMonth] = useState(currentMonthKey());
   const [txns, setTxns] = useState<Awaited<ReturnType<typeof repo.transactionsInRange>>>([]);
+  const [prevTxns, setPrevTxns] = useState<Awaited<ReturnType<typeof repo.transactionsInRange>>>([]);
   const [drafts, setDrafts] = useState<Map<string, number | null>>(new Map());
+  const [rolloverDrafts, setRolloverDrafts] = useState<Map<string, boolean>>(new Map());
   const [flexDraft, setFlexDraft] = useState<string>('');
   const [saved, setSaved] = useState(false);
 
@@ -27,8 +29,15 @@ export default function BudgetPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const range = await repo.transactionsInRange(monthStart(month), monthEnd(month));
-      if (!cancelled) setTxns(range);
+      const prevKey = addMonthsToKey(month, -1);
+      const [range, prevRange] = await Promise.all([
+        repo.transactionsInRange(monthStart(month), monthEnd(month)),
+        repo.transactionsInRange(monthStart(prevKey), monthEnd(prevKey)),
+      ]);
+      if (!cancelled) {
+        setTxns(range);
+        setPrevTxns(prevRange);
+      }
     })();
     return () => {
       cancelled = true;
@@ -38,8 +47,13 @@ export default function BudgetPage() {
   // Initialize drafts when the month or budget changes.
   useEffect(() => {
     const map = new Map<string, number | null>();
-    for (const bi of monthBudgetItems) map.set(bi.categoryId, bi.amount);
+    const roMap = new Map<string, boolean>();
+    for (const bi of monthBudgetItems) {
+      map.set(bi.categoryId, bi.amount);
+      roMap.set(bi.categoryId, bi.rollover);
+    }
     setDrafts(map);
+    setRolloverDrafts(roMap);
     setFlexDraft(budget?.flexAmount != null ? String(budget.flexAmount / 100) : '');
     setSaved(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -49,7 +63,18 @@ export default function BudgetPage() {
   const mode = budget?.mode ?? 'category';
 
   const spendByCat = useMemo(() => spendingByCategory(txns, []), [txns]);
-  const bSummary = useMemo(() => budgetSummary(budget, monthBudgetItems, spendByCat), [budget, monthBudgetItems, spendByCat]);
+  const prevMonth = addMonthsToKey(month, -1);
+  const prevBudget = budgets.find((b) => b.month === prevMonth) ?? null;
+  const prevBudgetItems = budgetItems.filter((bi) => bi.budgetId === prevBudget?.id);
+  const prevSpendByCat = useMemo(() => spendingByCategory(prevTxns, []), [prevTxns]);
+  const carryover = useMemo(
+    () => budgetRolloverCarryover(prevBudgetItems, prevSpendByCat),
+    [prevBudgetItems, prevSpendByCat],
+  );
+  const bSummary = useMemo(
+    () => budgetSummary(budget, monthBudgetItems, spendByCat, carryover),
+    [budget, monthBudgetItems, spendByCat, carryover],
+  );
 
   // Only expense categories that are actually used in budgets or spending.
   const expenseCats = useMemo(() => {
@@ -83,7 +108,7 @@ export default function BudgetPage() {
           budgetId: b.id,
           categoryId,
           amount: amt ?? 0,
-          rollover: true,
+          rollover: rolloverDrafts.get(categoryId) ?? true,
           createdAt: nowISO(),
           updatedAt: nowISO(),
         }));
@@ -97,8 +122,8 @@ export default function BudgetPage() {
           if (prev) items.push({ ...prev, amount: 0, updatedAt: nowISO() });
           continue;
         }
-        if (prev) items.push({ ...prev, amount: amt, updatedAt: nowISO() });
-        else items.push({ id: newId(), budgetId: budget.id, categoryId, amount: amt, rollover: true, createdAt: nowISO(), updatedAt: nowISO() });
+        if (prev) items.push({ ...prev, amount: amt, rollover: rolloverDrafts.get(categoryId) ?? prev.rollover, updatedAt: nowISO() });
+        else items.push({ id: newId(), budgetId: budget.id, categoryId, amount: amt, rollover: rolloverDrafts.get(categoryId) ?? true, createdAt: nowISO(), updatedAt: nowISO() });
       }
       // Remove zeroed-out items.
       await repo.deleteBudgetItems(budget.id);
@@ -241,7 +266,7 @@ export default function BudgetPage() {
             <EmptyState title="No expense categories" description="Create categories in Settings to start budgeting." />
           ) : (
             <div className="overflow-x-auto">
-              <table className="table-base min-w-[640px]">
+              <table className="table-base min-w-[760px]">
                 <thead>
                   <tr>
                     <th>Category</th>
@@ -249,21 +274,24 @@ export default function BudgetPage() {
                     <th className="w-32 text-right">Actual</th>
                     <th className="w-32 text-right">Remaining</th>
                     <th className="w-40">Progress</th>
+                    <th className="w-24 text-center">Rollover</th>
                   </tr>
                 </thead>
                 <tbody>
                   {expenseCats.map(({ group, cats }) => (
                     <React.Fragment key={group.id}>
                       <tr>
-                        <td colSpan={5} className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+                        <td colSpan={6} className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
                           {group.name}
                         </td>
                       </tr>
                       {cats.map((c) => {
                         const spent = spendByCat.get(c.id) ?? 0;
-                        const budgeted = drafts.get(c.id) ?? null;
-                        const remaining = (budgeted ?? 0) - spent;
-                        const pct = (budgeted ?? 0) > 0 ? (spent / (budgeted ?? 1)) * 100 : 0;
+                        const draftAmount = drafts.get(c.id) ?? null;
+                        const carry = carryover.get(c.id) ?? 0;
+                        const budgeted = (draftAmount ?? 0) + carry;
+                        const remaining = budgeted - spent;
+                        const pct = budgeted > 0 ? (spent / budgeted) * 100 : 0;
                         const hasItem = budgetItems.some((bi) => bi.budgetId === budget?.id && bi.categoryId === c.id);
                         return (
                           <tr key={c.id}>
@@ -272,17 +300,33 @@ export default function BudgetPage() {
                               {!hasItem && spent > 0 && <Badge tone="amber" className="ml-2">Unbudgeted</Badge>}
                             </td>
                             <td>
-                              <AmountInput value={budgeted} onChange={(v) => setDrafts((prev) => { const m = new Map(prev); m.set(c.id, v); return m; })} negative={false} />
+                              <AmountInput value={draftAmount} onChange={(v) => setDrafts((prev) => { const m = new Map(prev); m.set(c.id, v); return m; })} negative={false} />
+                              {carry > 0 && (
+                                <div className="mt-0.5 text-right text-[11px] font-medium text-emerald-600 dark:text-emerald-400">+{formatMoney(carry)} carried</div>
+                              )}
+                              {carry < 0 && (
+                                <div className="mt-0.5 text-right text-[11px] font-medium text-red-500 dark:text-red-400">−{formatMoney(-carry)} deficit</div>
+                              )}
                             </td>
                             <td className="text-right text-sm text-slate-700 dark:text-slate-300">{spent > 0 ? formatMoney(spent) : '—'}</td>
                             <td className={`text-right text-sm font-semibold ${remaining < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                              {budgeted ? formatMoney(remaining) : '—'}
+                              {budgeted !== 0 ? formatMoney(remaining) : '—'}
                             </td>
                             <td>
                               <div className="flex items-center gap-2">
-                                <ProgressBar value={pct} tone={spent > (budgeted ?? 0) ? 'over' : 'default'} className="flex-1" />
+                                <ProgressBar value={pct} tone={spent > budgeted ? 'over' : 'default'} className="flex-1" />
                                 <span className="w-10 text-right text-xs text-slate-500">{Math.round(pct)}%</span>
                               </div>
+                            </td>
+                            <td className="text-center">
+                              <input
+                                type="checkbox"
+                                checked={rolloverDrafts.get(c.id) ?? true}
+                                onChange={(e) => setRolloverDrafts((prev) => { const m = new Map(prev); m.set(c.id, e.target.checked); return m; })}
+                                aria-label={`Roll over unused ${c.name} budget to next month`}
+                                title="Carry unused budget to next month"
+                                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 dark:border-slate-600 dark:bg-slate-800"
+                              />
                             </td>
                           </tr>
                         );

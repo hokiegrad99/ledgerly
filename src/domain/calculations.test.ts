@@ -4,6 +4,7 @@ import {
   netWorthFromAccounts,
   cashFlow,
   budgetSummary,
+  budgetRolloverCarryover,
   spendingByCategory,
   detectTransferPairs,
   detectRecurring,
@@ -127,6 +128,67 @@ describe('budget summary', () => {
   it('flags over-budget', () => {
     const s = budgetSummary(budget, items, new Map([['c1', 120000]]));
     expect(s.categories[0].remaining).toBe(-20000);
+  });
+
+  it('adds carried-over surplus to the budget', () => {
+    const s = budgetSummary(budget, items, spending, new Map([['c1', 40000]]));
+    const c1 = s.categories.find((c) => c.categoryId === 'c1')!;
+    expect(c1.budgeted).toBe(140000);
+    expect(c1.remaining).toBe(80000);
+    expect(c1.carryover).toBe(40000);
+    expect(s.totalBudgeted).toBe(190000);
+    expect(s.totalRemaining).toBe(130000);
+  });
+
+  it('subtracts a carried deficit from the budget', () => {
+    const s = budgetSummary(budget, items, spending, new Map([['c1', -20000]]));
+    const c1 = s.categories.find((c) => c.categoryId === 'c1')!;
+    expect(c1.budgeted).toBe(80000);
+    expect(c1.remaining).toBe(20000);
+  });
+
+  it('includes carried money for categories not budgeted this month', () => {
+    const s = budgetSummary(budget, items, spending, new Map([['c-x', 25000]]));
+    const c = s.categories.find((x) => x.categoryId === 'c-x')!;
+    expect(c.budgeted).toBe(25000);
+    expect(c.rollover).toBe(true);
+    expect(s.totalBudgeted).toBe(175000);
+  });
+
+  it('does not count carry-covered categories as unbudgeted spending', () => {
+    const s = budgetSummary(budget, items, new Map([['c1', 60000], ['c3', 10000]]), new Map([['c3', 5000]]));
+    expect(s.nonBudgetedSpending).toBe(0);
+    const c3 = s.categories.find((c) => c.categoryId === 'c3')!;
+    expect(c3.budgeted).toBe(5000);
+    expect(c3.remaining).toBe(-5000);
+  });
+});
+
+describe('budget rollover carryover', () => {
+  it('carries the signed remainder of rollover items only', () => {
+    const prevItems: BudgetItem[] = [
+      { id: 'bi1', budgetId: 'b0', categoryId: 'c1', amount: 100000, rollover: true, createdAt: '', updatedAt: '' },
+      { id: 'bi2', budgetId: 'b0', categoryId: 'c2', amount: 50000, rollover: false, createdAt: '', updatedAt: '' },
+      { id: 'bi3', budgetId: 'b0', categoryId: 'c3', amount: 30000, rollover: true, createdAt: '', updatedAt: '' },
+    ];
+    const carry = budgetRolloverCarryover(prevItems, new Map([['c1', 60000], ['c2', 10000], ['c3', 40000]]));
+    expect(carry.get('c1')).toBe(40000); // surplus
+    expect(carry.get('c3')).toBe(-10000); // deficit
+    expect(carry.has('c2')).toBe(false); // no rollover flag
+  });
+
+  it('skips categories with no remainder', () => {
+    const prevItems: BudgetItem[] = [
+      { id: 'bi1', budgetId: 'b0', categoryId: 'c1', amount: 10000, rollover: true, createdAt: '', updatedAt: '' },
+    ];
+    expect(budgetRolloverCarryover(prevItems, new Map([['c1', 10000]])).size).toBe(0);
+  });
+
+  it('treats missing spending as zero', () => {
+    const prevItems: BudgetItem[] = [
+      { id: 'bi1', budgetId: 'b0', categoryId: 'c1', amount: 10000, rollover: true, createdAt: '', updatedAt: '' },
+    ];
+    expect(budgetRolloverCarryover(prevItems, new Map()).get('c1')).toBe(10000);
   });
 });
 

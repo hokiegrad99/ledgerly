@@ -227,8 +227,10 @@ been checked.
 - **Priority:** P2
 - **Description:** Navigate months, copy budget to next month, rollover flag per category.
 - **Dependencies:** REQ-024
-- **Acceptance criteria:** Month navigation works; copy-to-next-month works.
-- **Status:** IMPLEMENTED (rollover flag stored; rollover carry-forward computation deferred)
+- **Acceptance criteria:** Month navigation works; copy-to-next-month works; unused budget with
+  rollover enabled carries into the next month (surplus adds, deficit subtracts); per-category
+  rollover toggle persists.
+- **Status:** VERIFIED
 
 ---
 

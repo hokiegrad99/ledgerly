@@ -114,7 +114,8 @@ All pure functions, all integer math:
 |---|---|
 | `netWorthFromAccounts` | assets / liabilities / net worth, honoring exclusions |
 | `cashFlow` | income / expenses / net for a set of transactions (transfers excluded by default) |
-| `budgetSummary` | budgeted / spent / remaining / percent per category + totals |
+| `budgetSummary` | budgeted / spent / remaining / percent per category + totals, incl. carried-over amounts (optional carryover map) |
+| `budgetRolloverCarryover` | previous month's signed remainder per rollover category (surplus adds, deficit subtracts) |
 | `spendingByCategory` / `spendingByMerchant` | aggregations handling split lines |
 | `detectTransferPairs` | same-amount opposite-sign pairs within a date window |
 | `detectRecurring` | interval + day-of-month detection from history |

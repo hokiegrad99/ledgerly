@@ -11,16 +11,15 @@ Prioritized backlog. This list always represents the most useful next work.
 
 ## Medium
 
-5. **REQ-026** — Implement budget rollover carry-forward (ISSUE-001) with tests.
-6. **REQ-035** — Add tag-name search to the transaction search path (ISSUE-003).
-7. **REQ-023** — Surface import session history in the UI (data currently recorded, not displayed).
-8. **REQ-031** — Auto-derive holdings from investment transactions (buy/sell/reinvest update shares + cost basis).
+5. **REQ-035** — Add tag-name search to the transaction search path (ISSUE-003).
+6. **REQ-023** — Surface import session history in the UI (data currently recorded, not displayed).
+7. **REQ-031** — Auto-derive holdings from investment transactions (buy/sell/reinvest update shares + cost basis).
 
 ## Low
 
-9. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
-10. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
-11. **ISSUE-004** — Group the Reports category filter.
-12. **ISSUE-005** — Add an undo buffer for transaction deletes.
-13. Dashboard: widget resize support (currently reorder/remove/add only).
-14. Category transaction counts in the Settings categories UI (currently a stub).
+8. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
+9. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
+10. **ISSUE-004** — Group the Reports category filter.
+11. **ISSUE-005** — Add an undo buffer for transaction deletes.
+12. Dashboard: widget resize support (currently reorder/remove/add only).
+13. Category transaction counts in the Settings categories UI (currently a stub).
