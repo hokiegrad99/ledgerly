@@ -167,6 +167,15 @@ export class IndexedDBRepository implements DataRepository {
     }
 
     let rows = await promise;
+
+    // Resolve tag names → ids once so free-text search can match tags too (ISSUE-003).
+    let tagIdHits: Set<string> | null = null;
+    if (q.search) {
+      const s = q.search.toLowerCase();
+      const hits = await db.tags.filter((tag) => tag.name.toLowerCase().includes(s)).toArray();
+      if (hits.length > 0) tagIdHits = new Set(hits.map((h) => h.id));
+    }
+
     rows = rows.filter((t) => {
       if (q.categoryId && t.categoryId !== q.categoryId) return false;
       if (q.categoryIds && q.categoryIds.length > 0 && !(t.categoryId && q.categoryIds.includes(t.categoryId))) return false;
@@ -180,7 +189,8 @@ export class IndexedDBRepository implements DataRepository {
       if (q.search) {
         const s = q.search.toLowerCase();
         const hay = `${t.merchant} ${t.originalDescription} ${t.notes}`.toLowerCase();
-        if (!hay.includes(s)) return false;
+        const tagHit = tagIdHits !== null && !!t.tagIds?.some((id) => tagIdHits.has(id));
+        if (!hay.includes(s) && !tagHit) return false;
       }
       return true;
     });

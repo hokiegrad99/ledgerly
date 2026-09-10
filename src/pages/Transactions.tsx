@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, CheckCheck, Link2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, CheckCheck, Link2, ChevronLeft, ChevronRight, Undo2, X } from 'lucide-react';
 import { useApp } from '../store/AppContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, Card, EmptyState, Badge, PageLoader, Stat } from '../components/ui/basic';
@@ -16,6 +16,7 @@ import { newId, nowISO } from '../lib/id';
 import { cashFlow, detectTransferPairs } from '../domain/calculations';
 import { monthKeyOf, todayISO } from '../lib/dates';
 import { applyRulesToTransaction } from '../domain/rules';
+import { captureDeletion, restoreDeletion, UNDO_WINDOW_MS, type DeleteSnapshot } from '../domain/undo';
 import type { TransactionQuery } from '../data/repository';
 
 const PAGE_SIZE = 50;
@@ -65,7 +66,21 @@ export default function TransactionsPage() {
   const [transferCandidates, setTransferCandidates] = useState<Transaction[]>([]);
   const [deleteIds, setDeleteIds] = useState<string[]>([]);
 
+  // Undo buffer for deletes (ISSUE-005): a snapshot of everything a delete
+  // removed, restorable for a short window after the fact.
+  const [undoSnapshot, setUndoSnapshot] = useState<DeleteSnapshot | null>(null);
+  const undoTimer = useRef<number | null>(null);
+
   const loadRef = useRef(0);
+
+  const clearUndoTimer = useCallback(() => {
+    if (undoTimer.current !== null) {
+      window.clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => clearUndoTimer(), [clearUndoTimer]);
 
   const buildQuery = useCallback((): TransactionQuery => {
     const q: TransactionQuery = {
@@ -229,8 +244,30 @@ export default function TransactionsPage() {
   };
 
   const doDelete = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    // Snapshot before deleting — the repo also removes splits, and we want to
+    // be able to put them (and any transfer links) back.
+    const snapshot = await captureDeletion(repo, ids);
     await repo.deleteTransactions(ids);
     setSelected(new Set());
+    bumpTxn();
+    await refresh();
+    if (snapshot.transactions.length > 0) {
+      clearUndoTimer();
+      setUndoSnapshot(snapshot);
+      undoTimer.current = window.setTimeout(() => {
+        undoTimer.current = null;
+        setUndoSnapshot(null);
+      }, UNDO_WINDOW_MS);
+    }
+  };
+
+  const undoDelete = async () => {
+    if (!undoSnapshot) return;
+    clearUndoTimer();
+    const snapshot = undoSnapshot;
+    setUndoSnapshot(null);
+    await restoreDeletion(repo, snapshot);
     bumpTxn();
     await refresh();
   };
@@ -683,8 +720,36 @@ export default function TransactionsPage() {
         danger
         title={`Delete ${deleteIds.length} transaction${deleteIds.length === 1 ? '' : 's'}?`}
         confirmLabel="Delete"
-        message="This permanently deletes the selected transactions and any associated splits. This cannot be undone."
+        message="This deletes the selected transactions and any associated splits. You can undo this for a few seconds after deleting."
       />
+
+      {/* Undo toast — short-lived escape hatch after a delete (ISSUE-005). */}
+      {undoSnapshot && (
+        <div
+          className="fixed bottom-20 left-4 right-4 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-slate-900 px-4 py-3 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900 lg:bottom-6"
+          role="status"
+          aria-live="polite"
+        >
+          <span>
+            Deleted {undoSnapshot.transactions.length} transaction{undoSnapshot.transactions.length === 1 ? '' : 's'}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-semibold text-brand-300 hover:bg-white/10 dark:text-brand-600 dark:hover:bg-slate-900/10"
+              onClick={() => void undoDelete()}
+            >
+              <Undo2 className="h-3.5 w-3.5" /> Undo
+            </button>
+            <button
+              className="rounded-md p-1 text-slate-400 hover:text-white dark:hover:text-slate-900"
+              onClick={() => { clearUndoTimer(); setUndoSnapshot(null); }}
+              aria-label="Dismiss undo"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

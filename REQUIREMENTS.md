@@ -64,7 +64,9 @@ been checked.
 - **Description:** Tables become scrollable or card-like on small screens; charts resize; touch-friendly controls; no forced horizontal scroll where avoidable.
 - **Dependencies:** REQ-001
 - **Acceptance criteria:** Pages usable at 375px, 768px, 1024px, 1440px+.
-- **Status:** IMPLEMENTED
+- **Status:** VERIFIED (automated pass at 375/768/1024/1440 across all routes: correct
+  nav mode per breakpoint, mobile drawer opens, sidebar collapses, no horizontal
+  scroll; one issue found on Reports at 375px and fixed — 2026-09-10)
 
 ### REQ-007 — Accessibility
 - **Priority:** P2
@@ -321,7 +323,7 @@ been checked.
 - **Description:** Fast search across merchant, description, notes, category, tags, account.
 - **Dependencies:** REQ-012, REQ-013
 - **Acceptance criteria:** Search returns matches quickly on large datasets.
-- **Status:** IMPLEMENTED (searches merchant/description/notes; tag search via tag filter)
+- **Status:** VERIFIED (searches merchant/description/notes **and tag names** since 2026-09-10; ISSUE-003 fixed)
 
 ---
 
@@ -379,14 +381,17 @@ been checked.
 - **Description:** Installable, offline-capable, service worker caching, works from GitHub Pages.
 - **Dependencies:** none
 - **Acceptance criteria:** `vite build` generates service worker + manifest; app installable.
-- **Status:** IMPLEMENTED (SW generated; offline behavior to be verified in browser)
+- **Status:** VERIFIED (manifest, SW registration/control, and offline reload verified against the
+  live GitHub Pages deployment via `scripts/verify-deployed.mjs` — 2026-09-10)
 
 ### REQ-042 — GitHub Pages deployment
 - **Priority:** P1
 - **Description:** GitHub Actions workflow (tests + typecheck + build + deploy), SPA routing compatible with Pages (hash router), docs.
 - **Dependencies:** none
 - **Acceptance criteria:** Workflow file present; build uses relative base; hash routing.
-- **Status:** IMPLEMENTED
+- **Status:** VERIFIED (live at `https://hokiegrad99.github.io/ledgerly/` — workflow runs tests +
+  typecheck + build, deploys via Actions; relative `base: './'` and hash routing confirmed in a
+  real browser — 2026-09-10)
 
 ### REQ-043 — Future Ubuntu/Docker/PostgreSQL deployment
 - **Priority:** P3

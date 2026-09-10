@@ -85,6 +85,27 @@ describe('IndexedDBRepository', () => {
     expect(res.total).toBe(1);
   });
 
+  it('searches by tag name (ISSUE-003)', async () => {
+    await repo.saveAccount(account({ id: 'acc1' }));
+    await repo.saveTag({ id: 'tag-travel', name: 'Travel', createdAt: '', updatedAt: '' });
+    await repo.saveTag({ id: 'tag-work', name: 'Work', createdAt: '', updatedAt: '' });
+    await repo.saveTransactions([
+      txn({ merchant: 'Delta Airlines', tagIds: ['tag-travel'] }),
+      txn({ merchant: 'Uber', tagIds: ['tag-work'] }),
+      txn({ merchant: 'Shell Gas' }),
+    ]);
+    const res = await repo.queryTransactions({ search: 'travel' });
+    expect(res.total).toBe(1);
+    expect(res.items[0].merchant).toBe('Delta Airlines');
+    // Case-insensitive, and still matches merchant text in the same query.
+    const res2 = await repo.queryTransactions({ search: 'WORK' });
+    expect(res2.total).toBe(1);
+    expect(res2.items[0].merchant).toBe('Uber');
+    const res3 = await repo.queryTransactions({ search: 'gas' });
+    expect(res3.total).toBe(1);
+    expect(res3.items[0].merchant).toBe('Shell Gas');
+  });
+
   it('deletes transactions and their splits', async () => {
     await repo.saveAccount(account({ id: 'acc1' }));
     const t = txn({ accountId: 'acc1' });

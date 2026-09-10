@@ -77,6 +77,12 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full guide. Short version:
    `.github/workflows/deploy.yml` runs tests, typecheck, build, and deploys.
 4. Your app is live at `https://<user>.github.io/<repo>/`.
 
+> ⚠️ **URLs are lowercase:** GitHub Pages serves project sites with a
+> case-sensitive, all-lowercase repo slug, so `https://<user>.github.io/<repo>/`
+> only works when `<repo>` is typed in lowercase. For this project the live URL
+> is **`https://hokiegrad99.github.io/ledgerly/`** — a capital "L" in `Ledgerly`
+> returns 404.
+
 No paid infrastructure required.
 
 ---

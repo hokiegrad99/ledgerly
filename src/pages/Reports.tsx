@@ -109,6 +109,26 @@ export default function ReportsPage() {
 
   const filteredSplits = useMemo(() => splits.filter((s) => filtered.some((t) => t.id === s.transactionId)), [splits, filtered]);
 
+  // Category filter is grouped by category group for scannability (ISSUE-004).
+  const catsByGroup = useMemo(() => {
+    const map = new Map<string, typeof categories>();
+    for (const c of categories) {
+      if (c.archived) continue;
+      const arr = map.get(c.groupId) ?? [];
+      arr.push(c);
+      map.set(c.groupId, arr);
+    }
+    return map;
+  }, [categories]);
+  const activeGroups = useMemo(() => groups.filter((g) => !g.archived), [groups]);
+  // Non-archived categories whose group is archived or missing stay selectable.
+  const orphanCats = useMemo(
+    () => [...catsByGroup.entries()]
+      .filter(([gid]) => !activeGroups.some((g) => g.id === gid))
+      .flatMap(([, cs]) => cs),
+    [catsByGroup, activeGroups],
+  );
+
   const spendByCat = useMemo(() => spendingByCategory(filtered, filteredSplits), [filtered, filteredSplits]);
   const merchants = useMemo(() => spendingByMerchant(filtered, 15), [filtered]);
   const flow = cashFlow(filtered);
@@ -384,7 +404,7 @@ export default function ReportsPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             <span>From</span>
             <Input type="date" className="w-auto" value={filters.dateFrom ?? ''} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value || null }))} />
             <span>to</span>
@@ -404,9 +424,24 @@ export default function ReportsPage() {
           </Select>
           <Select className="w-auto" value={filters.categoryIds?.[0] ?? ''} onChange={(e) => setFilters((f) => ({ ...f, categoryIds: e.target.value ? [e.target.value] : null }))} aria-label="Filter by category">
             <option value="">All categories</option>
-            {categories.filter((c) => !c.archived).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
+            {activeGroups.map((g) => {
+              const cats = catsByGroup.get(g.id) ?? [];
+              if (cats.length === 0) return null;
+              return (
+                <optgroup key={g.id} label={g.name}>
+                  {cats.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </optgroup>
+              );
+            })}
+            {orphanCats.length > 0 && (
+              <optgroup label="Other">
+                {orphanCats.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </optgroup>
+            )}
           </Select>
           <Select className="w-auto" value={filters.tagIds?.[0] ?? ''} onChange={(e) => setFilters((f) => ({ ...f, tagIds: e.target.value ? [e.target.value] : null }))} aria-label="Filter by tag">
             <option value="">All tags</option>

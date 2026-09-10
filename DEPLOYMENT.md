@@ -36,6 +36,12 @@ The included workflow (`.github/workflows/deploy.yml`) does:
 
 Your app is live at **`https://<user>.github.io/<repo>/`** within a minute or two.
 
+> ⚠️ **The URL is all-lowercase.** GitHub Pages project URLs are case-sensitive
+> and use the repo slug in lowercase: `https://hokiegrad99.github.io/ledgerly/`
+> works, `https://hokiegrad99.github.io/Ledgerly/` returns **404** (GitHub
+> redirects to lowercase in the repo UI, but not on Pages). If a link 404s,
+> check the casing of the repo part first.
+
 ### 3. Updating
 
 Push changes to `main` — the workflow rebuilds and redeploys automatically.

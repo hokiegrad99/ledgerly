@@ -2,6 +2,46 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Tag search (REQ-035) + responsive fixes (REQ-006)
+
+### Fixed
+- ISSUE-003: free-text transaction search now matches **tag names** too.
+  `queryTransactions` resolves tag names → ids (case-insensitive) and includes
+  transactions whose tags match, OR'd with merchant/description/notes. REQ-035
+  marked VERIFIED.
+- Reports date-range row overflowed 31px at 375px (date inputs can't shrink below
+  intrinsic width inside a non-wrapping flex) — added `flex-wrap`.
+
+### Tests
+- 1 new repository test (tag-name search incl. case-insensitivity and merchant
+  search still working). 127 total.
+
+### Verified
+- Responsive pass added to `scripts/verify-deployed.mjs` (375/768/1024/1440 × all
+  routes: nav mode, drawer, sidebar collapse, no horizontal scroll). 38/38 checks
+  pass on the local build; REQ-006 marked VERIFIED. Against the live deployment
+  37/38 pass — the only failure is the (already fixed) Reports overflow, which
+  clears on the next deploy.
+
+## 2026-09-10 — GitHub Pages deployment verified (REQ-041, REQ-042)
+
+### Added
+- `scripts/verify-deployed.mjs`: headless-Chrome (CDP) verification script for the
+  deployed app — onboarding, sample-data seeding, IndexedDB counts, all 12 routes,
+  transaction search, backup download validation, PWA manifest + service worker,
+  and full offline reload + offline navigation.
+
+### Verified (against the live deployment)
+- GitHub Pages deployment live at `https://hokiegrad99.github.io/ledgerly/`
+  (note: lowercase — the capital-L URL 404s). REQ-042 marked VERIFIED.
+- PWA: manifest served, service worker registers/activates/controls the page,
+  the app reloads and works fully offline with stored data intact, and in-app
+  navigation works offline. REQ-041 marked VERIFIED; ISSUE-002 closed.
+- Acceptance subset: onboarding → sample data (6 accounts, 351 transactions) →
+  every route renders → search filters ("Starbucks": 50 → 30 rows) → backup
+  download produces a valid `ledgerly-backup` v1 file. 28/28 checks pass,
+  no console errors.
+
 ## 2026-09-10 — Budget rollover carry-forward (REQ-026)
 
 ### Added
