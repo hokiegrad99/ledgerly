@@ -30,10 +30,23 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 37/50 = 74
 substantially complete; Phase 7 — server mode — is deferred by design).
 
 **Current Task:** Finish the §48 interactive acceptance remainder (import
-wizard, restore wizard, split/transfer/rules flows) and push the pending
-REQ-035/REQ-006 fixes to redeploy.
+wizard, restore wizard, split/transfer/rules flows).
 
 ## Last Completed Work
+
+### 2026-09-10 — Fixes pushed; live deployment re-verified
+- Fixed ISSUE-005 (short-lived undo buffer for transaction deletes: snapshots
+  transactions + splits + transfer pairs before deletion, restores from a toast) and
+  ISSUE-004 (Reports category filter grouped by category group, with an "Other"
+  bucket so no category is dropped). 136 tests passing.
+- Committed everything as `c061f3b` and pushed to `main`; the Pages workflow completed
+  successfully.
+- Re-verified the live deployment: **39/39 checks pass, no console errors**. The new
+  grouped-filter check confirms the new bundle is deployed (28 groups / 147 options),
+  and the previously-failing 375px Reports overflow now passes on every route.
+- Undo verified live end-to-end: bulk-deleted 50 transactions (351 → 301) and restored
+  them from the toast (301 → 351).
+- Known issues: 0 open.
 
 ### 2026-09-10 — Tag search (REQ-035) + responsive pass (REQ-006)
 - Fixed ISSUE-003: free-text transaction search now matches tag names
@@ -45,8 +58,8 @@ REQ-035/REQ-006 fixes to redeploy.
 - Found and fixed one layout bug: Reports date-range row overflowed 31px at 375px
   (non-wrapping flex of date inputs) — added `flex-wrap`.
 - Full verification on the local build: 38/38 checks pass, no console errors.
-  Against the live deployment: 37/38 (the one failure is the already-fixed Reports
-  overflow, pending redeploy). REQ-006 marked VERIFIED.
+  Against the live deployment at the time: 37/38 (the one failure was the Reports
+  overflow, since fixed and re-verified live). REQ-006 marked VERIFIED.
 
 ### 2026-09-10 — Deployed to GitHub Pages; PWA + acceptance verified (REQ-041, REQ-042)
 - Deployed via the Actions workflow — app is live at **`https://hokiegrad99.github.io/ledgerly/`**
@@ -89,40 +102,44 @@ REQ-035/REQ-006 fixes to redeploy.
 ## Current Work
 
 **§48 acceptance remainder** — Status: IN_PROGRESS.
-- Automated acceptance subset + responsive + PWA verified
-  (`scripts/verify-deployed.mjs`, 38/38 on the local build).
+- Automated acceptance subset + responsive + PWA verified against the live
+  deployment (`scripts/verify-deployed.mjs`, 39/39, no console errors).
 - Remaining (interactive, browser): CSV/QFX import wizard with a real file,
   duplicate skip on re-import, rule application, split/transfer editing, restore
   wizard (replace + merge).
-- Pending: push + redeploy the REQ-035 (tag search) and REQ-006 (Reports flex-wrap)
-  fixes so the live site matches the local build.
+- Deployed: the REQ-035 (tag search), REQ-006 (Reports flex-wrap), ISSUE-004
+  (grouped filter), and ISSUE-005 (undo) fixes are live and verified.
 
 ## Next Tasks
 
-1. Push the REQ-035/REQ-006 fixes and re-run `scripts/verify-deployed.mjs` against
-   the live URL (expect 38/38).
-2. Complete the §48 interactive acceptance remainder against the deployed app
+1. Complete the §48 interactive acceptance remainder against the deployed app
    (import → dedupe → rules → split → transfers → restore; extend
-   `scripts/verify-deployed.mjs` where automatable).
-3. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
-4. Update documentation as the above land.
+   `scripts/verify-deployed.mjs` where automatable — e.g. `DOM.setFileInputFiles`
+   for the CSV import and restore wizards).
+2. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
+3. Update documentation as the above land.
 
 ## SESSION HANDOFF
 
-**Last session:** 2026-09-10 (tag search REQ-035 + responsive REQ-006)
+**Last session:** 2026-09-10 (ISSUE-004 + ISSUE-005 fixed; pushed and live-verified)
 
 **What was accomplished (this session):**
-- Confirmed the whole build is green (typecheck, 126 tests, production build) and that the
-  GitHub Actions Pages workflow deployed successfully.
-- Confirmed the live URL is lowercase (`https://hokiegrad99.github.io/ledgerly/`; the
-  capital-L variant 404s) and documented the casing gotcha in README.md and DEPLOYMENT.md.
-- Wrote `scripts/verify-deployed.mjs` and ran it against the live deployment:
-  acceptance subset (onboarding, seeding, all routes, search, backup download) plus
-  PWA online/offline verification — 28/28 checks pass, no console errors.
-- REQ-041 + REQ-042 marked VERIFIED (70% overall); ISSUE-002 closed; docs updated.
-- Fixed ISSUE-003 (tag-name search, REQ-035 VERIFIED) and the Reports 375px overflow
-  (REQ-006 VERIFIED); extended the verification script with a responsive phase
-  (38/38 checks on the local build). 74% overall.
+- Fixed ISSUE-005 (short-lived undo buffer for transaction deletes) and ISSUE-004
+  (Reports category filter grouped by category group).
+- Added `src/domain/undo.ts` + tests; extended `scripts/verify-deployed.mjs` with a
+  grouped-filter check; 136 tests passing.
+- Committed as `c061f3b`, pushed to `main`; Pages workflow succeeded.
+- Re-verified live: 39/39 checks, no console errors; undo confirmed end-to-end
+  (351 → 301 → 351). Known issues: 0 open.
+
+**What was accomplished (prior session):**
+- Confirmed the build green (typecheck, 126 tests, production build) and the Pages
+  workflow deploying successfully.
+- Documented the lowercase live URL (`https://hokiegrad99.github.io/ledgerly/`; the
+  capital-L variant 404s) in README.md and DEPLOYMENT.md.
+- Wrote `scripts/verify-deployed.mjs` (acceptance subset + PWA online/offline, 28/28).
+- REQ-041/REQ-042 VERIFIED; then fixed ISSUE-003 (tag-name search, REQ-035) and the
+  Reports 375px overflow (REQ-006) and added a responsive phase (38/38 local).
 
 **What was accomplished (initial build):**
 - Complete local-first personal finance app: accounts, transactions (search/filter/
@@ -137,30 +154,29 @@ REQ-035/REQ-006 fixes to redeploy.
 **What remains unfinished:**
 - §48 interactive acceptance remainder (import wizard with a real file, re-import dedupe,
   rule application, split/transfer editing, restore replace/merge).
-- Pushing the REQ-035/REQ-006 fixes to the live deployment.
 - Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
 
 **Current implementation state:**
 - `npm run typecheck` — PASS
-- `npm test` — PASS (126 tests)
+- `npm test` — PASS (136 tests)
 - `npm run build` — PASS (dist/ with PWA service worker)
 - `npm run project:status` — reports requirements/tests/build/known-issues.
 
-**Known problems:** see KNOWN_ISSUES.md (2 open, none critical; ISSUE-001/002 closed, ISSUE-003 fixed).
+**Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001/002 closed, ISSUE-003/004/005 fixed).
 
-**Next recommended task:** Push the REQ-035/REQ-006 fixes, then complete the §48 interactive
-acceptance remainder against the deployed app.
+**Next recommended task:** Complete the §48 interactive acceptance remainder against the
+deployed app (extend `scripts/verify-deployed.mjs` for the CSV import and restore wizards).
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
-**Files changed (this session):** `src/data/indexeddb-repository.ts` (+ tag search),
-`src/data/indexeddb-repository.test.ts` (+ test), `src/pages/Reports.tsx` (flex-wrap),
-`scripts/verify-deployed.mjs` (+ responsive phase), REQUIREMENTS.md, KNOWN_ISSUES.md,
-BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
+**Files changed (this session):** `src/pages/Reports.tsx` (filter grouping),
+`src/pages/Transactions.tsx` (+ undo toast), `src/domain/undo.ts` +
+`src/domain/undo.test.ts` (new), `scripts/verify-deployed.mjs` (+ grouped-filter check),
+KNOWN_ISSUES.md, NEXT_TASKS.md.
 
-**Tests run:** `npm test` (127 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (38/38 against the local build; 37/38 against the
-live deployment until the pending fixes are pushed).
+**Tests run:** `npm test` (136 passing), `npm run typecheck`, `npm run build`,
+`node scripts/verify-deployed.mjs` (39/39 against both the local build and the live
+deployment), plus a live delete/undo check (351 → 301 → 351).
 
-**Tests passing:** 127/127. **Tests failing:** 0.
+**Tests passing:** 136/136. **Tests failing:** 0.
 
 **Important decisions:** see DECISIONS.md (DEC-001..DEC-009).

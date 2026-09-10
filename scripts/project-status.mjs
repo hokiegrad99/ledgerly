@@ -29,18 +29,25 @@ function countRequirements() {
 
 function countIssues() {
   const path = 'KNOWN_ISSUES.md';
-  if (!existsSync(path)) return { total: 0, bySeverity: {} };
+  if (!existsSync(path)) return { total: 0, openTotal: 0, bySeverity: {} };
   const text = readFileSync(path, 'utf8');
+  // Split into per-issue blocks so each severity can be paired with its status;
+  // only OPEN/IN_PROGRESS issues count as "known issues".
+  const blocks = text.split(/^## /m).slice(1);
   const sev = {};
   let total = 0;
-  for (const line of text.split('\n')) {
-    const m = line.match(/\*\*Severity:\*\*\s*(Critical|High|Medium|Low)/);
-    if (m) {
-      sev[m[1]] = (sev[m[1]] ?? 0) + 1;
-      total++;
+  let openTotal = 0;
+  for (const block of blocks) {
+    const status = block.match(/\*\*Status:\*\*\s*(\w+)/)?.[1];
+    const severity = block.match(/\*\*Severity:\*\*\s*(Critical|High|Medium|Low)/)?.[1];
+    if (!status) continue;
+    total++;
+    if ((status === 'OPEN' || status === 'IN_PROGRESS') && severity) {
+      sev[severity] = (sev[severity] ?? 0) + 1;
+      openTotal++;
     }
   }
-  return { total, bySeverity: sev };
+  return { total, openTotal, bySeverity: sev };
 }
 
 const req = countRequirements();
@@ -97,7 +104,8 @@ console.log('');
 
 console.log('Known Issues');
 console.log('------------');
-console.log(`Total:   ${issues.total}`);
+console.log(`Logged:  ${issues.total}`);
+console.log(`Open:    ${issues.openTotal}`);
 for (const [sev, n] of Object.entries(issues.bySeverity)) {
   console.log(`${sev.padEnd(8)} ${n}`);
 }

@@ -2,6 +2,32 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Delete undo (ISSUE-005), grouped Reports filter (ISSUE-004), live redeploy
+
+### Fixed
+- ISSUE-005: transaction deletes are now undoable for a short window.
+  `src/domain/undo.ts` snapshots the removed transactions, their splits, and any
+  referenced transfer pairs *before* deletion; the Transactions page restores them
+  from an "Undo" toast (10s). Covers bulk deletes and single-row deletes.
+- ISSUE-004: the Reports category filter renders `<optgroup>`s per non-archived
+  category group (with an "Other" bucket for categories whose group is archived or
+  missing, so none are dropped). Empty groups are omitted.
+
+### Added
+- `src/domain/undo.ts` + `src/domain/undo.test.ts` (9 tests).
+- `scripts/verify-deployed.mjs`: check that the Reports category filter is grouped.
+
+### Verified (against the live deployment)
+- Committed as `c061f3b`; the GitHub Actions Pages workflow completed successfully.
+- **39/39 checks pass, no console errors.** The grouped-filter check confirms the new
+  bundle is deployed (28 groups / 147 options), and the 375px Reports overflow that
+  previously failed now passes on every route.
+- Undo confirmed live end-to-end: bulk-deleted 50 transactions (351 → 301) and
+  restored them from the toast (301 → 351).
+
+### Tests
+- 136 total (10 files). Typecheck and production build clean.
+
 ## 2026-09-10 — Tag search (REQ-035) + responsive fixes (REQ-006)
 
 ### Fixed
