@@ -2,6 +2,32 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Monarch-style cash-flow report (REQ-033 enhancement)
+
+### Added
+- Reports: new **"Cash flow (Monarch-style)"** report kind (`cashflow-map`),
+  modeled on the user's Monarch screenshot:
+  - Summary tiles for Total income, Total expenses, Total net income, and
+    Savings rate.
+  - Month navigation (‹ ›) independent of the report's date-range filter — the
+    view fetches its own month via `transactionsInRange` (bounded indexed
+    query); account, category, tag, merchant, and type filters still apply.
+  - `src/components/reports/FlowChart.tsx` — a dependency-free SVG Sankey:
+    income sources → Income → category groups → top categories, plus a
+    "Savings" flow out of Income equal to the month's net income.
+    Percentages are relative to total income; node heights fit the larger of
+    inflow vs outflow (so the Income node stays proportional when expenses
+    exceed income); ribbons are gradient-filled and colored by their target;
+    nodes and links expose hover titles.
+  - CSV export of the selected month's income/expense rows with % of income.
+- `scripts/probe-cashflow-map.mjs` — headless-Chrome probe for the new report
+  (9 checks, including a seeded windfall income to exercise the Savings flow,
+  since all sample-data months are net-negative by design).
+
+### Verified
+- Probe 9/9 (two runs); full deployed-app harness still 105/105; 163 unit
+  tests; typecheck and production build clean.
+
 ## 2026-09-10 — Import history + holdings sync automated in the verification harness (Phases 10–11)
 
 ### Added

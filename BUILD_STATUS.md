@@ -30,10 +30,33 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 40/50 = 80
 substantially complete; Phase 7 — server mode — is deferred by design).
 
 **Current Task:** The §48 acceptance checklist is fully automated **and verified
-against the live deployment (90/90, 2026-09-10)**. Remaining backlog: the
+against the live deployment (90/90, 2026-09-10)**. Latest feature: the
+Monarch-style cash-flow report (REQ-033 enhancement). Remaining backlog: the
 Low items in NEXT_TASKS.md (server-mode docs, dashboard niceties).
 
 ## Last Completed Work
+
+### 2026-09-10 — Monarch-style cash-flow report (REQ-033 enhancement)
+- New report kind **"Cash flow (Monarch-style)"** (`cashflow-map`) in Reports,
+  built from the user's Monarch screenshot:
+  - Four summary tiles: Total income / Total expenses / Total net income /
+    Savings rate.
+  - Month navigation (‹ ›) that is independent of the date-range filter — the
+    view fetches its own month from the repository (bounded indexed query),
+    while account/category/tag filters still apply.
+  - A dependency-free SVG Sankey (`src/components/reports/FlowChart.tsx`):
+    income sources → Income → category groups → top categories, with net
+    income rendered as a green "Savings" flow out of Income; percentages
+    relative to total income; node heights fit the larger of inflow vs outflow;
+    pastel gradient ribbons colored by target; hover titles on nodes and links.
+  - CSV export of the month's income/expense rows.
+- New probe `scripts/probe-cashflow-map.mjs` (9 checks): report selectable,
+  tiles, month header, Sankey rendering (20 nodes / 19 ribbons), Income node,
+  Savings flow when net > 0 (seeds a windfall income into the throwaway
+  profile DB since all sample-data months are net-negative by design),
+  category groups present, and month navigation moving the header.
+- **9/9 probe checks pass (twice)**; full harness still **105/105**; 163 unit
+  tests, typecheck, and production build clean.
 
 ### 2026-09-10 — Harness Phases 10–11: import history + holdings sync verified
 - Extended `scripts/verify-deployed.mjs`:
@@ -287,8 +310,9 @@ checks + audit docs); Phase 8 (rule application on import) in
 **Tests run:** `npm test` (163 passing), `npm run typecheck`, `npm run build`,
 `node scripts/verify-deployed.mjs` (**105/105** on the local build, two
 consecutive runs, and **against the live deployment** after the `6bafc8a` push —
-Phases 10–11 cover REQ-023/REQ-031 end to end in production), plus a live
-delete/undo check (351 → 301 → 351) in a prior session.
+Phases 10–11 cover REQ-023/REQ-031 end to end in production),
+`scripts/probe-cashflow-map.mjs` (**9/9**, twice — Monarch-style cash-flow
+report), plus a live delete/undo check (351 → 301 → 351) in a prior session.
 
 **Tests passing:** 163/163. **Tests failing:** 0. **Harness checks:** 105/105.
 

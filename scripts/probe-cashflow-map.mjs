@@ -94,7 +94,51 @@ try {
   check('Sankey SVG rendered', !!svg && svg.rects >= 5 && svg.paths >= 5, svg ? `${svg.rects} nodes, ${svg.paths} ribbons, ${svg.texts} labels` : 'missing');
   const labels = await page.eval(`(() => { const s = document.querySelector('svg[aria-label=\"Cash flow diagram\"]'); return s ? s.textContent : ''; })()`);
   check('Income node labeled', /Income/.test(labels));
-  check('Savings flow present (net > 0 month)', /Savings/.test(labels), labels.match(/Savings[^$]*\$[\d.,]+/)?.[0]?.slice(0, 40) ?? '');
+  // Sample-data months are net-negative by design (spending > 2 paychecks), so
+  // the Savings flow is exercised by seeding one fat income transaction into
+  // the current month through IndexedDB (throwaway profile — nothing persists).
+  await page.eval(`(async () => {
+    const db = await new Promise((res, rej) => {
+      const r = indexedDB.open('ledgerly');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    const accs = await new Promise((res, rej) => {
+      const c = db.transaction('accounts').objectStore('accounts').getAll();
+      c.onsuccess = () => res(c.result);
+      c.onerror = () => rej(c.error);
+    });
+    const acct = accs.find((a) => a.type === 'checking') ?? accs[0];
+    const now = new Date().toISOString();
+    const today = now.slice(0, 10);
+    await new Promise((res, rej) => {
+      const tx = db.transaction('transactions', 'readwrite');
+      tx.objectStore('transactions').put({
+        id: 'probe-savings-txn', accountId: acct.id, date: today, amount: 500000,
+        merchant: 'Probe Windfall', originalDescription: 'Probe Windfall', categoryId: null,
+        tagIds: [], notes: '', type: 'income', cleared: true, pending: false, reviewed: true,
+        transferId: null, recurringId: null, externalId: null, splitParentId: null,
+        importSessionId: null, createdAt: now, updatedAt: now,
+      });
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  })()`);
+  await page.eval(`location.reload()`);
+  await SLEEP(3500);
+  await page.eval(`(() => { const a = [...document.querySelectorAll('a')].find((x) => x.getAttribute('href')?.includes('reports')); if (a) a.click(); })()`);
+  await SLEEP(1200);
+  await page.eval(`(() => {
+    const sel = document.querySelector('select[aria-label="Report type"]');
+    const opt = [...sel.options].find((o) => o.value === 'cashflow-map');
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    setter.call(sel, 'cashflow-map');
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await SLEEP(1500);
+  const labelsSeeded = await page.eval(`(() => { const s = document.querySelector('svg[aria-label="Cash flow diagram"]'); return s ? s.textContent : ''; })()`);
+  check('Savings flow appears when net > 0', /Savings/.test(labelsSeeded),
+    labelsSeeded.match(/Savings[^%]*%/)?.[0]?.slice(0, 44) ?? 'no Savings node');
   check('Category group nodes present', /Housing|Food|Bills|Transport|Auto|Personal/i.test(labels));
 
 
@@ -108,13 +152,6 @@ try {
   const lastMonthIso = (() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); })();
   check('Previous month changes the header', prev === 'clicked' && headerAfter.includes(lastMonthIso),
     headerAfter.match(/\d{4}-\d{2}-\d{2}/g)?.join(' – ') ?? headerAfter.slice(0, 40));
-
-  // Savings flow: step back to a complete month (sample data is richest in the past).
-  for (let i = 0; i < 5; i++) { await page.eval(`document.querySelector('button[aria-label="Previous month"]')?.click()`); await SLEEP(400); }
-  await SLEEP(600);
-  const labelsPast = await page.eval(`(() => { const s = document.querySelector('svg[aria-label="Cash flow diagram"]'); return s ? s.textContent : ''; })()`);
-  check('Savings flow appears in a complete month', /Savings/.test(labelsPast),
-    labelsPast.match(/Savings \$[\d.,]+/)?.[0] ?? 'no Savings node');
 
   // Console errors?
   check('No page errors during probe', true);

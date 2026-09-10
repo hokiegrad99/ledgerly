@@ -53,6 +53,11 @@ is the Medium/Low backlog below)
 > (Phases 10–11) — **105/105 checks** on the local build (twice) and against the
 > live deployment, no console errors. Harness commit `6bafc8a` pushed and the
 > live deployment re-verified at 105/105 after the Pages deploy.
+> ✅ **Done 2026-09-10:** Monarch-style cash-flow report (per user's screenshot):
+> "Cash flow (Monarch-style)" report kind with summary tiles, month navigation
+> independent of the date filter, and a dependency-free SVG Sankey
+> (sources → Income → groups → categories + Savings flow). Probe 9/9; harness
+> still 105/105; 163 tests.
 
 ## Medium
 
