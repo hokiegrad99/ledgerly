@@ -1,0 +1,41 @@
+<OFX>
+  <SIGNONMSGSRSV1>
+    <SONRS>
+      <FI><ORG>First Community Bank</ORG><FID>1234</FID></FI>
+    </SONRS>
+  </SIGNONMSGSRSV1>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <STMTRS>
+        <CURDEF>USD</CURDEF>
+        <BANKACCTFROM>
+          <BANKID>987654321</BANKID>
+          <ACCTID>4821</ACCTID>
+          <ACCTTYPE>CHECKING</ACCTTYPE>
+        </BANKACCTFROM>
+        <BANKTRANLIST>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240910120000.000[-5:EST]</DTPOSTED>
+            <TRNAMT>-45.67</TRNAMT>
+            <FITID>20240910001</FITID>
+            <NAME>GROCERY STORE</NAME>
+            <MEMO>DEBIT CARD PURCHASE</MEMO>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>CREDIT</TRNTYPE>
+            <DTPOSTED>20240905</DTPOSTED>
+            <TRNAMT>2320.50</TRNAMT>
+            <FITID>20240905002</FITID>
+            <NAME>ACME CORP PAYROLL</NAME>
+            <MEMO>DIRECT DEPOSIT</MEMO>
+          </STMTTRN>
+        </BANKTRANLIST>
+        <LEDGERBAL>
+          <BALAMT>1234.56</BALAMT>
+          <DTASOF>20240910</DTASOF>
+        </LEDGERBAL>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>
