@@ -322,6 +322,34 @@ async function main() {
       await SLEEP(1000);
       const after = await page.eval(`document.querySelectorAll('table tbody tr').length`);
       check('Search filters rows', after > 0 && after < before, `rows ${before} → ${after}`);
+      // Free-text search also matches category names (REQ-035 / ISSUE-007). The
+      // sample set has ~50+ "Groceries" transactions, so a category-name search
+      // must return rows (it previously returned 0 because the page wired the
+      // search box to q.merchant instead of q.search).
+      const catTyped = await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="Search transactions…"]');
+        if (!input) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'Groceries');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`);
+      check('Search input found + typed "Groceries" (category name)', catTyped);
+      await SLEEP(1000);
+      const catRows = await page.eval(`document.querySelectorAll('table tbody tr').length`);
+      check('Category-name search returns rows', catRows > 0, `rows = ${catRows}`);
+      const acctTyped = await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="Search transactions…"]');
+        if (!input) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'High-Yield Savings');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`);
+      check('Search input found + typed "High-Yield Savings" (account name)', acctTyped);
+      await SLEEP(1000);
+      const acctRows = await page.eval(`document.querySelectorAll('table tbody tr').length`);
+      check('Account-name search returns rows', acctRows > 0, `rows = ${acctRows}`);
       // Clear search for subsequent checks.
       await page.eval(`(() => {
         const input = document.querySelector('input[placeholder="Search transactions…"]');

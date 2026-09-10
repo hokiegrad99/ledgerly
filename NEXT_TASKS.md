@@ -18,19 +18,27 @@ Prioritized backlog. This list always represents the most useful next work.
 > (validate, replace restores the backup exactly, merge re-adds a removed record), and
 > the **QFX/OFX import wizard** (generated OFX statement, FITID-based re-import dedupe,
 > searchable result) — 66/66 checks on the local build and against the live deployment.
+> ✅ **Done 2026-09-10:** Requirements audit — six inert/incomplete features fixed
+> (ISSUE-006..011): account delete now reachable, pending filter control added,
+> includeInBudget/includeInReports toggles + rule exclude actions actually consumed,
+> search matches category/account names, saved-report rename, currency/dateFormat
+> settings applied. 147 tests; 70/70 local harness checks (live 68/70 pending the
+> search-wiring push).
 
 ## High
 
-1. **§48 acceptance remainder** — Finish the interactive flows the automated pass can't yet cover: rule application on import, and split/transfer editing. CSV import, QFX/OFX import (with FITID re-import dedupe), and the restore wizard (replace + merge) are already automated in `scripts/verify-deployed.mjs`.
+1. **Push the search-wiring fix** (`src/pages/Transactions.tsx`: search box →
+   `q.search`) — closes the live 68/70 → 70/70 gap and ships ISSUE-009's UI half.
+2. **§48 acceptance remainder** — Finish the interactive flows the automated pass can't yet cover: rule application on import, and split/transfer editing. CSV import, QFX/OFX import (with FITID re-import dedupe), and the restore wizard (replace + merge) are already automated in `scripts/verify-deployed.mjs`.
 
 ## Medium
 
-2. **REQ-023** — Surface import session history in the UI (data currently recorded, not displayed).
-3. **REQ-031** — Auto-derive holdings from investment transactions (buy/sell/reinvest update shares + cost basis).
+3. **REQ-023** — Surface import session history in the UI (data currently recorded, not displayed).
+4. **REQ-031** — Auto-derive holdings from investment transactions (buy/sell/reinvest update shares + cost basis).
 
 ## Low
 
-4. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
-5. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
-6. Dashboard: widget resize support (currently reorder/remove/add only).
-7. Category transaction counts in the Settings categories UI (currently a stub).
+5. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
+6. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
+7. Dashboard: widget resize support (currently reorder/remove/add only).
+8. Category transaction counts in the Settings categories UI (currently a stub).

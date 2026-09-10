@@ -88,7 +88,9 @@ export default function TransactionsPage() {
       dateTo: filters.dateTo || undefined,
       accountId: filters.accountId || undefined,
       categoryId: filters.categoryId || undefined,
-      merchant: filters.search || undefined,
+      // Free-text search covers merchant/description/notes plus tag, category,
+      // and account names (REQ-035) — route it through q.search, not q.merchant.
+      search: filters.search || undefined,
       type: (filters.type as Transaction['type']) || undefined,
       tagId: filters.tagId || undefined,
       reviewed: filters.reviewed === 'reviewed' ? true : undefined,

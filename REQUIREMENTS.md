@@ -312,7 +312,8 @@ been checked.
 - **Description:** Save, rename, duplicate, delete report definitions; export report data to CSV.
 - **Dependencies:** REQ-033
 - **Acceptance criteria:** Saved reports restore kind + filters; CSV downloads contain the visible data.
-- **Status:** IMPLEMENTED
+- **Status:** VERIFIED (save/duplicate/delete existed; **rename** added 2026-09-10 during the
+  requirements audit — ISSUE-010 fixed)
 
 ---
 
@@ -323,7 +324,9 @@ been checked.
 - **Description:** Fast search across merchant, description, notes, category, tags, account.
 - **Dependencies:** REQ-012, REQ-013
 - **Acceptance criteria:** Search returns matches quickly on large datasets.
-- **Status:** VERIFIED (searches merchant/description/notes **and tag names** since 2026-09-10; ISSUE-003 fixed)
+- **Status:** VERIFIED (searches merchant/description/notes, **tag names** (ISSUE-003),
+  and **category + account names** (ISSUE-009) since 2026-09-10; the Transactions page
+  routes the search box through `q.search`)
 
 ---
 
@@ -359,7 +362,9 @@ been checked.
 - **Description:** Appearance (theme, currency, date format, week start), profile, category/tag/rule management, data management (integrity check, sample data, reset, recompute balances).
 - **Dependencies:** REQ-005, REQ-017, REQ-018, REQ-019
 - **Acceptance criteria:** All settings persist.
-- **Status:** VERIFIED
+- **Status:** VERIFIED (currency and date-format settings now actually applied
+  app-wide since 2026-09-10 — ISSUE-011 fixed; `weekStart` is inert until a weekly
+  view exists)
 
 ---
 

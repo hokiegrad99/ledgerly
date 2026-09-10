@@ -6,7 +6,7 @@
 
 ## Overall Progress
 
-Completion: **74%** (37 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
+Completion: **76%** (38 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
 
 ### Requirements by status
 
@@ -14,14 +14,14 @@ Completion: **74%** (37 of 50 requirements verified; DEFERRED/NOT_STARTED server
 |---|---|
 | NOT_STARTED | 5 |
 | IN_PROGRESS | 0 |
-| IMPLEMENTED | 8 |
+| IMPLEMENTED | 7 |
 | TESTING | 0 |
-| VERIFIED | 37 |
+| VERIFIED | 38 |
 | BLOCKED | 0 |
 | DEFERRED | 0 |
 | **Total** | **50** |
 
-Completion Percentage = VERIFIED / total active requirements × 100 = 37/50 = 74%.
+Completion Percentage = VERIFIED / total active requirements × 100 = 38/50 = 76%.
 *(Run `npm run project:status` to regenerate live numbers.)*
 
 ## Current Development Phase
@@ -33,6 +33,26 @@ substantially complete; Phase 7 — server mode — is deferred by design).
 on import, split/transfer editing).
 
 ## Last Completed Work
+
+### 2026-09-10 — Requirements audit: six dead/incomplete features fixed
+- Audited the app against the original 50-requirement spec (no new features).
+  Fixed: ISSUE-006 (account delete unreachable — added a Delete button to the
+  account edit modal), ISSUE-007 (pending filter had no UI control — added a
+  "Pending: all / Pending only" dropdown), ISSUE-008 (includeInBudget/
+  includeInReports toggles and rule exclude actions were persisted but never
+  consumed — new `src/domain/exclusions.ts`; Budget/Dashboard/Reports now honor
+  them), ISSUE-009 (free-text search ignored category/account names — repository
+  resolves names → ids; the Transactions page now routes the search box through
+  `q.search`, which it wasn't doing), ISSUE-010 (saved reports couldn't be
+  renamed — added a Rename action/modal), ISSUE-011 (currency/dateFormat settings
+  persisted but never applied — `formatMoney`/`formatDate` now use app-wide
+  defaults driven by the settings).
+- New tests: `src/domain/exclusions.test.ts` (9), exclusion rule-application,
+  category/account-name search. **147 total** (11 files), typecheck clean.
+- Audit commit `ee5f88c` pushed; live deployment verified at **68/70** (the two
+  failures are the new category/account-name search checks — the search-wiring
+  fix landed after that push and ships with the next one). Local build with all
+  fixes: **70/70 checks pass**, no console errors.
 
 ### 2026-09-10 — QFX/OFX import wizard automated
 - Added Phase 7 to `scripts/verify-deployed.mjs`: uploads a generated OFX statement
@@ -117,7 +137,7 @@ on import, split/transfer editing).
 - Sample dataset (fictional, ~300 transactions).
 - 119 automated tests passing; typecheck clean; production build succeeds.
 
-**Requirements verified:** REQ-001..006, 008, 010..022, 024, 026, 027..030, 032, 033, 035, 036..042, 048
+**Requirements verified:** REQ-001..006, 008, 010..022, 024, 026, 027..030, 032, 033, 034, 035, 036..042, 048
 
 ## Current Work
 
@@ -131,12 +151,15 @@ on import, split/transfer editing).
 
 ## Next Tasks
 
-1. Complete the §48 interactive acceptance remainder against the deployed app
+1. **Push the search-wiring fix** (`src/pages/Transactions.tsx`: search box →
+   `q.search`) so the category/account-name search checks pass on the live site
+   (currently 68/70 live, 70/70 local).
+2. Complete the §48 interactive acceptance remainder against the deployed app
    (rule application on import → split/transfer editing; extend
    `scripts/verify-deployed.mjs` where automatable — the CSV and QFX/OFX import and
    restore wizards are already covered).
-2. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
-3. Update documentation as the above land.
+3. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
+4. Update documentation as the above land.
 
 ## SESSION HANDOFF
 
@@ -183,23 +206,32 @@ on import, split/transfer editing).
 
 **Current implementation state:**
 - `npm run typecheck` — PASS
-- `npm test` — PASS (136 tests)
+- `npm test` — PASS (147 tests)
 - `npm run build` — PASS (dist/ with PWA service worker)
 - `npm run project:status` — reports requirements/tests/build/known-issues.
 
-**Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001/002 closed, ISSUE-003/004/005 fixed).
+**Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
 
-**Next recommended task:** Automate rule application on import in
-`scripts/verify-deployed.mjs`, then finish the §48 split/transfer editing checks.
+**Next recommended task:** Push the search-wiring fix (Transactions.tsx search →
+`q.search`) to close the live 68/70 → 70/70 gap, then automate rule application on
+import and finish the §48 split/transfer editing checks.
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
-**Files changed (this session):** `scripts/verify-deployed.mjs` (+ CSV import, restore,
-and QFX/OFX import wizard phases), BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
+**Files changed (this session):** requirements audit — `src/domain/exclusions.ts` +
+`src/domain/exclusions.test.ts` (new), `src/domain/{defaults,rules,rules.test}.ts`,
+`src/data/indexeddb-repository.ts` (+test), `src/lib/{money,dates}.ts`,
+`src/store/AppContext.tsx`, `src/pages/{Accounts,Budget,Dashboard,Goals,ImportExport,
+Investments,Planning,Recurring,Reports,Transactions}.tsx`,
+`src/components/transactions/TransferModal.tsx`, `scripts/verify-deployed.mjs`
+(+category/account-name search checks), KNOWN_ISSUES.md, REQUIREMENTS.md,
+CHANGELOG.md, BUILD_STATUS.md, NEXT_TASKS.md.
 
-**Tests run:** `npm test` (136 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (**66/66** against both the local build and the live
-deployment), plus a live delete/undo check (351 → 301 → 351).
+**Tests run:** `npm test` (147 passing), `npm run typecheck`, `npm run build`,
+`node scripts/verify-deployed.mjs` (**70/70** on the local build; **68/70** against
+the live deployment — the two failures are the new category/account-name search
+checks, pending the search-wiring push), plus a live delete/undo check
+(351 → 301 → 351) in a prior session.
 
-**Tests passing:** 136/136. **Tests failing:** 0.
+**Tests passing:** 147/147. **Tests failing:** 0.
 
 **Important decisions:** see DECISIONS.md (DEC-001..DEC-009).

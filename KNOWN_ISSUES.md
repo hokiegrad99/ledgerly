@@ -75,3 +75,99 @@ Never silently ignore known problems — log them here.
   each delete, including singletons from the row menu. The delete confirm dialog now
   states the action is undoable for a few seconds. Covered by unit tests
   (`src/domain/undo.test.ts`).
+
+## ISSUE-006
+- **Title:** Account delete is unreachable in the UI
+- **Severity:** High
+- **Status:** FIXED
+- **Affected requirement:** REQ-010
+- **Steps to reproduce:** Open Accounts → edit an account.
+- **Expected:** The account can be deleted from the UI.
+- **Actual:** The delete state existed but nothing opened it — no Delete action on
+  the row or in the edit modal, so accounts could never be removed (except by
+  wiping all data).
+- **Resolution:** Added a **Delete account** button to the account edit modal
+  (danger variant) that opens the existing delete confirmation dialog; deleting
+  also closes the modal. `onDelete` is only offered for existing accounts, never
+  for the create form.
+
+## ISSUE-007
+- **Title:** "Pending" filter exists in the query but has no UI control
+- **Severity:** High
+- **Status:** FIXED
+- **Affected requirement:** REQ-013
+- **Steps to reproduce:** Go to Transactions and try to filter to pending
+  transactions.
+- **Expected:** A control to show only pending transactions.
+- **Actual:** The repository honored `q.pending`, but no filter dropdown exposed it
+  — pending transactions could only be seen by scrolling.
+- **Resolution:** Added a "Pending: all / Pending only" filter dropdown to the
+  Transactions filter bar (`aria-label="Filter by pending status"`).
+
+## ISSUE-008
+- **Title:** includeInBudget/includeInReports toggles and rule exclude actions are not consumed
+- **Severity:** Medium
+- **Status:** FIXED
+- **Affected requirement:** REQ-011, REQ-019
+- **Steps to reproduce:** Uncheck "Include in budget/reports" on an account, or add a
+  rule with "exclude from budget/reports", then open Dashboard/Budget/Reports.
+- **Expected:** Those transactions are excluded from budgets and reports.
+- **Actual:** The account toggles and rule actions were persisted but never read
+  anywhere — excluded transactions still counted.
+- **Resolution:** Added `src/domain/exclusions.ts` (single source of truth):
+  `isExcludedFromBudget` / `isExcludedFromReports` check the account toggles and the
+  exclusion system tags; rule actions now apply the system tags by id
+  (`EXCLUDE_FROM_BUDGET_TAG_ID` / `EXCLUDE_FROM_REPORTS_TAG_ID`), and Budget,
+  Dashboard, and Reports filter excluded transactions out of every calculation
+  (spending, cash flow, budget vs. actual, charts). Covered by new tests in
+  `src/domain/exclusions.test.ts` and `src/domain/rules.test.ts`.
+
+## ISSUE-009
+- **Title:** Free-text search ignores category and account names
+- **Severity:** Medium
+- **Status:** FIXED
+- **Affected requirement:** REQ-035
+- **Steps to reproduce:** In Transactions, search for a category name (e.g.
+  "Groceries") or account name (e.g. "High-Yield Savings").
+- **Expected:** Transactions in that category/account appear.
+- **Actual:** Search covered merchant/description/notes and tag names, but not
+  category or account names. (After the first fix attempt, the page also sent the
+  search term as `q.merchant` instead of `q.search`, so the new matching never ran
+  in the UI even though the repository supported it — found and fixed during live
+  verification.)
+- **Resolution:** `queryTransactions` now resolves tag, category, and account names
+  → ids once per query and matches transactions whose tags/category/account hit.
+  The Transactions page sends the search box through `q.search` (not `q.merchant`).
+  Covered by repository tests (category + account name matching) and three new
+  harness checks (merchant, category-name, and account-name search all return
+  rows).
+
+## ISSUE-010
+- **Title:** Saved reports cannot be renamed
+- **Severity:** Low
+- **Status:** FIXED
+- **Affected requirement:** REQ-034
+- **Steps to reproduce:** Reports → saved reports → try to rename one.
+- **Expected:** Rename is available alongside duplicate/delete.
+- **Actual:** Save/duplicate/delete existed, but no rename action — a mistyped name
+  required delete + re-save.
+- **Resolution:** Added a **Rename** (pencil) action per saved report that opens a
+  small modal; `repo.saveSavedReport` persists the new name.
+
+## ISSUE-011
+- **Title:** Currency and date-format settings are persisted but never applied
+- **Severity:** Medium
+- **Status:** FIXED
+- **Affected requirement:** REQ-039
+- **Steps to reproduce:** Settings → set currency to EUR and date format to
+  DD/MM/YYYY, then look at amounts and dates anywhere in the app.
+- **Expected:** Amounts render in the chosen currency and dates in the chosen
+  format.
+- **Actual:** The settings persisted, but every `formatMoney` call defaulted to USD
+  and every `formatDate` call to YYYY-MM-DD, so changing them had no visible effect
+  anywhere.
+- **Resolution:** `setDefaultCurrency` / `setDefaultDateFormat` (in `src/lib/money.ts`
+  and `src/lib/dates.ts`) drive the defaults used by `formatMoney` / `formatDate`;
+  `AppContext` applies the saved settings on load and whenever they change. All
+  date-displaying pages now use `formatDate` instead of raw ISO strings.
+  (`weekStart` remains inert by design — no weekly view exists yet.)

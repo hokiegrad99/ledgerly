@@ -2,6 +2,47 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Requirements audit: six dead/incomplete features fixed
+
+Audited the app against the original 50-requirement spec (no new features — only
+fixing things that were mocked, inert, or incomplete). Committed as `ee5f88c` and
+pushed; live deployment re-verified.
+
+### Fixed
+- ISSUE-006 (High): **account delete was unreachable** — the delete state existed
+  but no UI opened it. Added a "Delete account" button to the account edit modal.
+- ISSUE-007 (High): **"pending" filter had no UI control** — the repository
+  honored `q.pending`, but no dropdown exposed it. Added "Pending: all / Pending
+  only" to the Transactions filter bar.
+- ISSUE-008 (Medium): **includeInBudget/includeInReports toggles and rule exclude
+  actions were never consumed** — persisted but ignored everywhere. New
+  `src/domain/exclusions.ts` is the single source of truth; Budget, Dashboard, and
+  Reports now exclude those transactions from spending, cash flow, and charts.
+  Rule actions apply the exclusion system tags by id.
+- ISSUE-009 (Medium): **free-text search ignored category and account names** —
+  `queryTransactions` now resolves tag/category/account names → ids and matches
+  them; the Transactions page sends the search box through `q.search` (it was
+  mis-wired to `q.merchant`, so the UI never ran the new matching — found during
+  live verification).
+- ISSUE-010 (Low): **saved reports couldn't be renamed** — added a Rename action
+  and modal next to duplicate/delete.
+- ISSUE-011 (Medium): **currency and date-format settings were persisted but never
+  applied** — `formatMoney`/`formatDate` now use app-wide defaults driven by
+  `setDefaultCurrency`/`setDefaultDateFormat`, wired through `AppContext`;
+  date-displaying pages use `formatDate` instead of raw ISO strings.
+
+### Tests
+- New: `src/domain/exclusions.test.ts` (9 tests), exclusion rule-application test,
+  category/account-name search repository test. **147 total** (11 files), typecheck
+  clean.
+
+### Verified
+- **70/70 checks pass** on the local build, no console errors — the harness gained
+  three search checks (merchant, category-name, account-name).
+- Audit commit `ee5f88c` pushed; live deployment verified at **68/70** — the two
+  failures are the new category/account-name search checks, because the
+  search-wiring fix (below) landed after the push. It ships with the next push.
+
 ## 2026-09-10 — QFX/OFX import wizard automated in the verification harness
 
 ### Added
