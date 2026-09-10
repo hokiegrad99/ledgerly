@@ -29,10 +29,22 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 37/50 = 74
 **Phase 6 — Backup/restore, PWA, GitHub Pages deployment** (spec phases 1–6 are
 substantially complete; Phase 7 — server mode — is deferred by design).
 
-**Current Task:** Finish the §48 interactive acceptance remainder (import
-wizard, restore wizard, split/transfer/rules flows).
+**Current Task:** Finish the §48 interactive acceptance remainder (QFX/OFX import
+with a real file, rule application on import, split/transfer editing).
 
 ## Last Completed Work
+
+### 2026-09-10 — CSV import + restore wizard automated
+- Extended `scripts/verify-deployed.mjs` with two phases:
+  - **Phase 5 — CSV import wizard**: uploads a real CSV via `DOM.setFileInputFiles`,
+    verifies auto-mapping (date + amount), account selection, preview, import
+    (351 → 355), re-import duplicate skip (4 flagged, 0 new rows), and that the
+    imported rows are searchable in Transactions.
+  - **Phase 6 — restore wizard**: uploads the Phase-1 backup, validates it, restores in
+    **replace** mode (355 → 351, exactly the backup), removes one record, then restores
+    in **merge** mode (350 → 351).
+- **58/58 checks pass** on the local build (twice) and against the live deployment,
+  no console errors.
 
 ### 2026-09-10 — Fixes pushed; live deployment re-verified
 - Fixed ISSUE-005 (short-lived undo buffer for transaction deletes: snapshots
@@ -102,37 +114,42 @@ wizard, restore wizard, split/transfer/rules flows).
 ## Current Work
 
 **§48 acceptance remainder** — Status: IN_PROGRESS.
-- Automated acceptance subset + responsive + PWA verified against the live
-  deployment (`scripts/verify-deployed.mjs`, 39/39, no console errors).
-- Remaining (interactive, browser): CSV/QFX import wizard with a real file,
-  duplicate skip on re-import, rule application, split/transfer editing, restore
-  wizard (replace + merge).
+- Automated acceptance subset + responsive + PWA + CSV import + restore wizard
+  verified against the live deployment (`scripts/verify-deployed.mjs`, **58/58**,
+  no console errors).
+- Remaining (interactive, browser): QFX/OFX import with a real file, rule
+  application on import, split/transfer editing.
 - Deployed: the REQ-035 (tag search), REQ-006 (Reports flex-wrap), ISSUE-004
   (grouped filter), and ISSUE-005 (undo) fixes are live and verified.
 
 ## Next Tasks
 
 1. Complete the §48 interactive acceptance remainder against the deployed app
-   (import → dedupe → rules → split → transfers → restore; extend
-   `scripts/verify-deployed.mjs` where automatable — e.g. `DOM.setFileInputFiles`
-   for the CSV import and restore wizards).
+   (QFX/OFX import with a real file → rule application on import → split/transfer
+   editing; extend `scripts/verify-deployed.mjs` where automatable — the CSV import
+   and restore wizards are already covered).
 2. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
 3. Update documentation as the above land.
 
 ## SESSION HANDOFF
 
-**Last session:** 2026-09-10 (ISSUE-004 + ISSUE-005 fixed; pushed and live-verified)
+**Last session:** 2026-09-10 (CSV import + restore wizard automated in the harness)
 
 **What was accomplished (this session):**
-- Fixed ISSUE-005 (short-lived undo buffer for transaction deletes) and ISSUE-004
-  (Reports category filter grouped by category group).
-- Added `src/domain/undo.ts` + tests; extended `scripts/verify-deployed.mjs` with a
-  grouped-filter check; 136 tests passing.
-- Committed as `c061f3b`, pushed to `main`; Pages workflow succeeded.
-- Re-verified live: 39/39 checks, no console errors; undo confirmed end-to-end
-  (351 → 301 → 351). Known issues: 0 open.
+- Extended `scripts/verify-deployed.mjs` with Phase 5 (CSV import wizard: real file,
+  auto-mapping, account selection, preview, import, re-import duplicate skip, and the
+  imported rows are searchable) and Phase 6 (restore wizard: validate, replace restores
+  the backup exactly, merge re-adds a removed record).
+- **58/58 checks pass** on the local build (twice) and against the live deployment;
+  no console errors.
 
 **What was accomplished (prior session):**
+- Fixed ISSUE-005 (short-lived undo buffer for transaction deletes) and ISSUE-004
+  (Reports category filter grouped by category group); 136 tests passing.
+- Committed `c061f3b`, pushed to `main`; Pages workflow succeeded; live re-verified at
+  39/39; undo confirmed live (351 → 301 → 351); docs commit `6ab99e6`.
+
+**What was accomplished (earlier session):**
 - Confirmed the build green (typecheck, 126 tests, production build) and the Pages
   workflow deploying successfully.
 - Documented the lowercase live URL (`https://hokiegrad99.github.io/ledgerly/`; the
@@ -152,8 +169,8 @@ wizard, restore wizard, split/transfer/rules flows).
   backup round-trip, and the IndexedDB repository.
 
 **What remains unfinished:**
-- §48 interactive acceptance remainder (import wizard with a real file, re-import dedupe,
-  rule application, split/transfer editing, restore replace/merge).
+- §48 interactive acceptance remainder (QFX/OFX import with a real file, rule
+  application on import, split/transfer editing).
 - Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
 
 **Current implementation state:**
@@ -164,17 +181,15 @@ wizard, restore wizard, split/transfer/rules flows).
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001/002 closed, ISSUE-003/004/005 fixed).
 
-**Next recommended task:** Complete the §48 interactive acceptance remainder against the
-deployed app (extend `scripts/verify-deployed.mjs` for the CSV import and restore wizards).
+**Next recommended task:** Automate the QFX/OFX import wizard and rule application on
+import in `scripts/verify-deployed.mjs`, then finish the §48 split/transfer editing checks.
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
-**Files changed (this session):** `src/pages/Reports.tsx` (filter grouping),
-`src/pages/Transactions.tsx` (+ undo toast), `src/domain/undo.ts` +
-`src/domain/undo.test.ts` (new), `scripts/verify-deployed.mjs` (+ grouped-filter check),
-KNOWN_ISSUES.md, NEXT_TASKS.md.
+**Files changed (this session):** `scripts/verify-deployed.mjs` (+ CSV import and
+restore wizard phases), BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
 
 **Tests run:** `npm test` (136 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (39/39 against both the local build and the live
+`node scripts/verify-deployed.mjs` (**58/58** against both the local build and the live
 deployment), plus a live delete/undo check (351 → 301 → 351).
 
 **Tests passing:** 136/136. **Tests failing:** 0.

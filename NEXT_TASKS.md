@@ -12,10 +12,15 @@ Prioritized backlog. This list always represents the most useful next work.
 > and short-lived undo for transaction deletes (ISSUE-005).
 > ✅ **Done 2026-09-10:** All of the above pushed (`c061f3b`) and verified live — 39/39
 > checks, no console errors; undo confirmed end-to-end (351 → 301 → 351).
+> ✅ **Done 2026-09-10:** `scripts/verify-deployed.mjs` now automates the **CSV import
+> wizard** (real file via `DOM.setFileInputFiles`, auto-mapping, account, preview,
+> import, re-import duplicate skip, searchable result) and the **restore wizard**
+> (validate, replace restores the backup exactly, merge re-adds a removed record) —
+> 58/58 checks on the local build and against the live deployment.
 
 ## High
 
-1. **§48 acceptance remainder** — Finish the interactive flows against the deployed app that the automated pass can't cover: CSV/QFX import wizard with a real file, duplicate skip on re-import, rule application on import, split/transfer editing, restore wizard (replace + merge). Extend `scripts/verify-deployed.mjs` where automatable (e.g. `DOM.setFileInputFiles` for imports).
+1. **§48 acceptance remainder** — Finish the interactive flows the automated pass can't yet cover: QFX/OFX import wizard with a real file, rule application on import, and split/transfer editing. The CSV import wizard (with re-import duplicate skip) and the restore wizard (replace + merge) are already automated in `scripts/verify-deployed.mjs`.
 
 ## Medium
 

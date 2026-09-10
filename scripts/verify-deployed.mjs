@@ -16,7 +16,7 @@
  * Exit code 0 = all checks passed, 1 = one or more failed.
  */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -100,6 +100,38 @@ async function waitFor(cdp, expression, { timeout = 20000, interval = 300 } = {}
   throw new Error(`Timed out after ${timeout}ms waiting for: ${expression}${lastErr ? ` (last error: ${lastErr.message})` : ''}`);
 }
 
+/** Count transactions currently stored in the app's IndexedDB. */
+const DB_TXN_COUNT = `(async () => {
+  const db = await new Promise((res, rej) => {
+    const r = indexedDB.open('ledgerly');
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return new Promise((res, rej) => {
+    const c = db.transaction('transactions').objectStore('transactions').count();
+    c.onsuccess = () => res(c.result);
+    c.onerror = () => rej(c.error);
+  });
+})()`;
+
+/** Attach a real file to a file input via CDP (fires React's change handler). */
+async function setFileInput(cdp, selector, filePath) {
+  const { root } = await cdp.send('DOM.getDocument', { depth: 1 });
+  const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector });
+  if (!nodeId) throw new Error(`file input not found: ${selector}`);
+  await cdp.send('DOM.setFileInputFiles', { files: [filePath], nodeId });
+}
+
+/** Click the first button matching the given predicate (evaluated in the page). */
+async function clickButton(cdp, predicate) {
+  return cdp.eval(`(() => {
+    const btn = [...document.querySelectorAll('button')].find((b) => ${predicate});
+    if (!btn) return false;
+    btn.click();
+    return true;
+  })()`);
+}
+
 async function waitForEndpoint() {
   for (let i = 0; i < 60; i++) {
     try {
@@ -134,6 +166,7 @@ async function main() {
 
   const profileDir = mkdtempSync(join(tmpdir(), 'ledgerly-verify-'));
   const dlDir = mkdtempSync(join(tmpdir(), 'ledgerly-downloads-'));
+  const fixtureDir = mkdtempSync(join(tmpdir(), 'ledgerly-fixtures-'));
   let chrome;
 
   try {
@@ -167,6 +200,7 @@ async function main() {
     await page.send('Runtime.enable');
     await page.send('Network.enable');
     await page.send('Log.enable');
+    await page.send('DOM.enable');
     page.on('Runtime.exceptionThrown', (p) => {
       const d = p.exceptionDetails?.exception?.description ?? p.exceptionDetails?.text ?? 'unknown';
       consoleErrors.push(`exception: ${d}`);
@@ -186,6 +220,10 @@ async function main() {
       await waitFor(page, `document.readyState === 'complete'`, { timeout: 20000 });
       await waitFor(page, `document.querySelector('#root')?.childElementCount > 0`, { timeout: 15000 });
     };
+
+    // Captured in Phase 1 and reused by the restore-wizard phase.
+    let backupFilePath = null;
+    let backupTxnCount = null;
 
     // ========================================================================
     // PHASE 1 — Acceptance
@@ -339,9 +377,11 @@ async function main() {
       }
       check('Backup download captured', !!file, file ?? 'no file in download dir');
       if (file) {
-        const raw = readFileSync(join(dlDir, file), 'utf8');
+        backupFilePath = join(dlDir, file);
+        const raw = readFileSync(backupFilePath, 'utf8');
         const payload = JSON.parse(raw);
         const ok = payload?.format === 'ledgerly-backup' && payload?.version === 1 && payload?.data?.transactions?.length > 100;
+        backupTxnCount = payload?.data?.transactions?.length ?? null;
         check('Backup file validates (format v1 + data)', ok,
           `${payload.format} v${payload.version}, ${payload.data?.transactions?.length} transactions`);
       }
@@ -520,6 +560,200 @@ async function main() {
     await page.send('Emulation.clearDeviceMetricsOverride');
 
     // ========================================================================
+    // PHASE 5 — CSV import wizard (end-to-end)
+    // ========================================================================
+    console.log('── Phase 5: CSV import wizard ─────────────────────────────────');
+
+    // Two identically-shaped files: the second proves re-import dedupe (its
+    // filename differs so the file input definitely fires a change event).
+    const csvText = [
+      'Date,Description,Amount,Category',
+      '2026-08-01,Verify Import Alpha,-12.34,Shopping',
+      '2026-08-02,Verify Import Bravo,-56.78,Groceries',
+      '2026-08-03,Verify Import Charlie,-9.99,Dining',
+      '2026-08-04,Verify Import Delta,150.00,Income',
+    ].join('\n');
+    const csvPath1 = join(fixtureDir, 'ledgerly-verify-import.csv');
+    const csvPath2 = join(fixtureDir, 'ledgerly-verify-import-repeat.csv');
+    writeFileSync(csvPath1, csvText);
+    writeFileSync(csvPath2, csvText);
+    const CSV_FILE_INPUT = 'input[type="file"][accept*=".csv"]';
+
+    const validCountOf = () => page.eval(`(() => {
+      const m = document.body.innerText.match(/(\\d+) valid/);
+      return m ? Number(m[1]) : null;
+    })()`);
+
+    /** Walk the CSV wizard: upload → map → preview → import. */
+    const importCsv = async (path, { expectDuplicates }) => {
+      await waitFor(page, `document.body.innerText.includes('Upload a CSV or TSV statement')`, { timeout: 10000 });
+      await setFileInput(page, CSV_FILE_INPUT, path);
+
+      await waitFor(page, `document.body.innerText.includes('Map columns —')`, { timeout: 10000 });
+      const mapped = await page.eval(`({
+        date: document.body.innerText.includes('✓ Date mapped'),
+        amount: document.body.innerText.includes('✓ Amount mapped'),
+      })`);
+      check('CSV columns auto-mapped (date + amount)', mapped.date && mapped.amount, JSON.stringify(mapped));
+
+      const account = await page.eval(`(() => {
+        const sel = [...document.querySelectorAll('select')].find((s) => [...s.options].some((o) => o.textContent.trim() === 'Select an account…'));
+        if (!sel) return null;
+        const opt = [...sel.options].find((o) => o.value !== '');
+        if (!opt) return null;
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+        setter.call(sel, opt.value);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return { name: opt.textContent.trim() };
+      })()`);
+      check('CSV mapping step offers accounts', !!account, account ? account.name : 'no account option');
+      await SLEEP(400);
+
+      await clickButton(page, `b.textContent.trim() === 'Preview import'`);
+      await waitFor(page, `document.body.innerText.includes('Preview normalized transactions')`, { timeout: 10000 });
+      const valid = await validCountOf();
+
+      // Duplicate analysis resolves asynchronously inside the preview.
+      await waitFor(page, `document.body.innerText.includes('No duplicates found') || document.body.innerText.includes('possible duplicate(s) detected')`, { timeout: 10000 });
+      const dupes = await page.eval(`(() => {
+        const m = document.body.innerText.match(/(\\d+) possible duplicate\\(s\\) detected/);
+        return m ? Number(m[1]) : 0;
+      })()`);
+      check(expectDuplicates ? 'Re-import flags every row as a duplicate' : 'First import finds no duplicates',
+        expectDuplicates ? dupes === valid && valid > 0 : dupes === 0,
+        `${dupes} duplicates of ${valid} rows`);
+
+      await clickButton(page, `/^Import \\d+ transactions$/.test(b.textContent.trim())`);
+      await waitFor(page, `document.body.innerText.includes('Import complete')`, { timeout: 15000 });
+      const text = await page.eval(`document.body.innerText`);
+      const message = (text.match(/Imported \d+ transactions[^\n]*/) ?? [''])[0];
+      return { valid, message };
+    };
+
+    try {
+      await gotoRoute(page, '#/import-export', 'Import & Export');
+      await clickButton(page, `b.textContent.trim() === 'CSV / TSV'`);
+      const baseline = await page.eval(DB_TXN_COUNT);
+      check('CSV import: baseline transaction count', baseline > 100, `${baseline} transactions`);
+
+      const first = await importCsv(csvPath1, { expectDuplicates: false });
+      check('CSV preview shows all rows valid', first.valid === 4, `${first.valid} valid rows`);
+      const afterFirst = await page.eval(DB_TXN_COUNT);
+      check('CSV import persisted the new transactions', afterFirst === baseline + first.valid,
+        `${baseline} → ${afterFirst} (+${afterFirst - baseline})`);
+      check('CSV import reports success', first.message.includes(`Imported ${first.valid} transactions`), first.message);
+
+      // Re-import the identical file — everything should be skipped as a duplicate.
+      await clickButton(page, `b.textContent.trim() === 'Import another file'`);
+      await SLEEP(500);
+      const second = await importCsv(csvPath2, { expectDuplicates: true });
+      const afterSecond = await page.eval(DB_TXN_COUNT);
+      check('Re-import added no new rows', afterSecond === afterFirst, `${afterFirst} → ${afterSecond}`);
+      check('Re-import reports 0 imported', second.message.includes('Imported 0 transactions'), second.message);
+
+      // The imported rows show up in Transactions.
+      await gotoRoute(page, '#/transactions', 'Transactions');
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length > 0`, { timeout: 10000 });
+      await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="Search transactions…"]');
+        if (!input) return;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'Verify Import');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length === 4`, { timeout: 10000 });
+      check('Imported transactions are searchable', true, '4 rows for "Verify Import"');
+    } catch (e) {
+      check('CSV import wizard', false, e.message);
+    }
+
+    // ========================================================================
+    // PHASE 6 — Restore wizard (end-to-end)
+    // ========================================================================
+    console.log('── Phase 6: Restore wizard ────────────────────────────────────');
+
+    const confirmRestore = async () => {
+      await clickButton(page, `b.textContent.trim() === 'Restore backup'`);
+      await waitFor(page, `document.querySelector('[role="dialog"]') !== null`, { timeout: 8000 });
+      const title = await page.eval(`document.querySelector('[role="dialog"]')?.getAttribute('aria-label') ?? ''`);
+      await page.eval(`(() => {
+        const dlg = document.querySelector('[role="dialog"]');
+        [...dlg.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Restore')?.click();
+      })()`);
+      return title;
+    };
+
+    try {
+      if (!backupFilePath || !backupTxnCount) throw new Error('no backup file captured in Phase 1');
+      await gotoRoute(page, '#/import-export', 'Import & Export');
+      await clickButton(page, `b.textContent.trim() === 'Backup & restore'`);
+      await waitFor(page, `document.body.innerText.includes('Back up my data')`, { timeout: 10000 });
+
+      const beforeRestore = await page.eval(DB_TXN_COUNT);
+      check('Restore: extra data present before restore', beforeRestore > backupTxnCount,
+        `${beforeRestore} transactions (backup has ${backupTxnCount})`);
+
+      // Upload the backup produced in Phase 1.
+      await setFileInput(page, 'input[type="file"][accept*=".json"]', backupFilePath);
+      await waitFor(page, `document.body.innerText.includes('Valid backup')`, { timeout: 10000 });
+      check('Restore: backup validated in the wizard', true, `v1, ${backupTxnCount} transactions`);
+
+      // Replace mode (the default) — the dataset must return to exactly the backup.
+      const replaceTitle = await confirmRestore();
+      check('Restore: confirmation dialog appears', replaceTitle.includes('Restore this backup?'), replaceTitle);
+      await waitFor(page, `document.body.innerText.includes('Restore complete')`, { timeout: 15000 });
+      const afterReplace = await page.eval(DB_TXN_COUNT);
+      check('Restore (replace) restored the backup exactly', afterReplace === backupTxnCount,
+        `${beforeRestore} → ${afterReplace} (backup ${backupTxnCount})`);
+
+      // Merge mode — remove one record first so there is something to re-add.
+      const removedKey = await page.eval(`(async () => {
+        const db = await new Promise((res, rej) => {
+          const r = indexedDB.open('ledgerly');
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+        });
+        const tx = db.transaction('transactions', 'readwrite');
+        const store = tx.objectStore('transactions');
+        const key = await new Promise((res, rej) => {
+          const req = store.openCursor();
+          req.onsuccess = () => res(req.result ? req.result.primaryKey : null);
+          req.onerror = () => rej(req.error);
+        });
+        if (key !== null) {
+          await new Promise((res, rej) => {
+            const req = store.delete(key);
+            req.onsuccess = () => res();
+            req.onerror = () => rej(req.error);
+          });
+        }
+        await new Promise((res) => { tx.oncomplete = res; });
+        return key;
+      })()`);
+      const beforeMerge = await page.eval(DB_TXN_COUNT);
+      check('Restore: one record removed for the merge test', removedKey != null && beforeMerge === backupTxnCount - 1,
+        `${backupTxnCount} → ${beforeMerge}`);
+
+      await page.eval(`(() => {
+        const label = [...document.querySelectorAll('label')].find((l) => l.textContent.includes('Merge with current data'));
+        label?.querySelector('input[type="radio"]')?.click();
+      })()`);
+      await SLEEP(300);
+      await confirmRestore();
+      // `restoreDone` is already true from the replace pass, so poll the data
+      // rather than the banner to know the merge finished.
+      let afterMerge = beforeMerge;
+      for (let i = 0; i < 40 && afterMerge !== backupTxnCount; i++) {
+        await SLEEP(300);
+        afterMerge = await page.eval(DB_TXN_COUNT);
+      }
+      check('Restore (merge) re-added the missing record', afterMerge === backupTxnCount,
+        `${beforeMerge} → ${afterMerge}`);
+    } catch (e) {
+      check('Restore wizard', false, e.message);
+    }
+
+    // ========================================================================
     // Summary
     // ========================================================================
     const failed = results.filter((r) => !r.ok);
@@ -540,7 +774,7 @@ async function main() {
     try { chrome?.kill(); } catch { /* ignore */ }
     // Give Chrome a moment to release the profile before removing it.
     await SLEEP(800);
-    for (const dir of [profileDir, dlDir]) {
+    for (const dir of [profileDir, dlDir, fixtureDir]) {
       for (let i = 0; i < 5; i++) {
         try { rmSync(dir, { recursive: true, force: true }); break; } catch { await SLEEP(300); }
       }

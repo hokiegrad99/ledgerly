@@ -2,6 +2,21 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — CSV import + restore wizard automated in the verification harness
+
+### Added
+- `scripts/verify-deployed.mjs` Phase 5 — **CSV import wizard**, end to end: uploads a
+  real CSV via `DOM.setFileInputFiles`, asserts date/amount auto-mapping, selects an
+  account, previews, imports (351 → 355), re-imports the same file to confirm duplicate
+  skip (4 flagged, 0 new rows), and confirms the imported rows are searchable.
+- `scripts/verify-deployed.mjs` Phase 6 — **restore wizard**: uploads the backup captured
+  in Phase 1, validates it, restores in **replace** mode (355 → 351, exactly the backup),
+  deletes one record directly, then restores in **merge** mode (350 → 351).
+
+### Verified
+- **58/58 checks pass** on the local build (two consecutive runs) and against the live
+  deployment, with no console errors.
+
 ## 2026-09-10 — Delete undo (ISSUE-005), grouped Reports filter (ISSUE-004), live redeploy
 
 ### Fixed
