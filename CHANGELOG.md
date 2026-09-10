@@ -2,6 +2,39 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — Rule application on import automated (Phase 8)
+
+### Added
+- `scripts/verify-deployed.mjs` Phase 8 — **rule application on import**, end to
+  end: creates a real rule in Settings (merchant contains "RULE-IMPORT" → set
+  category Groceries), imports an OFX statement whose merchant matches it, and
+  asserts the imported row shows the rule-applied category in Transactions.
+
+### Verified
+- **77/77 checks pass** on the local build (two consecutive runs), no console
+  errors. This closes the last remaining §48 interactive gap except split/transfer
+  editing.
+- Live deployment re-verified at **70/70** after the `bbc205b` push
+  (category/account-name search checks now pass live).
+
+## 2026-09-10 — Search-wiring fix (ISSUE-009 UI half) + live redeploy
+
+### Fixed
+- `src/pages/Transactions.tsx`: the search box was sent to `queryTransactions` as
+  `q.merchant`, which bypassed the repository's tag/category/account-name matching
+  added in the audit commit — so category/account-name search returned 0 rows in
+  the UI even though unit tests passed. Now routed through `q.search` (which also
+  covers merchant/description/notes).
+
+### Added
+- `scripts/verify-deployed.mjs`: three new search checks (category-name and
+  account-name search must return rows) so this wiring can't regress silently.
+
+### Verified
+- Pushed as `bbc205b`; the Pages workflow succeeded; live deployment re-verified
+  at **70/70** (was 68/70), no console errors. The served bundle is byte-identical
+  to the local build.
+
 ## 2026-09-10 — Requirements audit: six dead/incomplete features fixed
 
 Audited the app against the original 50-requirement spec (no new features — only

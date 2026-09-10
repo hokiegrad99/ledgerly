@@ -29,10 +29,20 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 38/50 = 76
 **Phase 6 — Backup/restore, PWA, GitHub Pages deployment** (spec phases 1–6 are
 substantially complete; Phase 7 — server mode — is deferred by design).
 
-**Current Task:** Finish the §48 interactive acceptance remainder (rule application
-on import, split/transfer editing).
+**Current Task:** Finish the §48 interactive acceptance remainder (split/transfer
+editing is the only interactive flow left).
 
 ## Last Completed Work
+
+### 2026-09-10 — Rule application on import automated (Phase 8)
+- Added Phase 8 to `scripts/verify-deployed.mjs`: creates a real rule in Settings
+  (merchant contains "RULE-IMPORT" → set category Groceries), imports an OFX
+  statement matching it, and asserts the imported row shows the rule-applied
+  category in Transactions. **77/77 checks pass** on the local build (two runs),
+  no console errors.
+- Live deployment: verified at **70/70** after the `bbc205b` search-wiring push
+  (category/account-name search checks now green live); Phase 8 ships with the
+  next push.
 
 ### 2026-09-10 — Requirements audit: six dead/incomplete features fixed
 - Audited the app against the original 50-requirement spec (no new features).
@@ -139,6 +149,12 @@ on import, split/transfer editing).
 
 **Requirements verified:** REQ-001..006, 008, 010..022, 024, 026, 027..030, 032, 033, 034, 035, 036..042, 048
 
+**Requirements with automated end-to-end coverage in `scripts/verify-deployed.mjs`:**
+onboarding/sample data, all 12 routes, search (merchant + tag + category + account
+names), backup download + validation, PWA online/offline, responsive pass
+(375/768/1024/1440), CSV import wizard, restore wizard (replace + merge),
+QFX/OFX import wizard (FITID dedupe), and **rule application on import**.
+
 ## Current Work
 
 **§48 acceptance remainder** — Status: IN_PROGRESS.
@@ -200,8 +216,8 @@ on import, split/transfer editing).
   backup round-trip, and the IndexedDB repository.
 
 **What remains unfinished:**
-- §48 interactive acceptance remainder (rule application on import, split/transfer
-  editing).
+- §48 interactive acceptance remainder — split/transfer editing is the only
+  interactive flow left (rule application on import is now automated in Phase 8).
 - Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
 
 **Current implementation state:**
@@ -212,25 +228,20 @@ on import, split/transfer editing).
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
 
-**Next recommended task:** Push the search-wiring fix (Transactions.tsx search →
-`q.search`) to close the live 68/70 → 70/70 gap, then automate rule application on
-import and finish the §48 split/transfer editing checks.
+**Next recommended task:** Push `bbc205b` (search-wiring fix — already verified
+live at 70/70) and the Phase 8 harness work, then finish the §48 split/transfer
+editing checks.
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
-**Files changed (this session):** requirements audit — `src/domain/exclusions.ts` +
-`src/domain/exclusions.test.ts` (new), `src/domain/{defaults,rules,rules.test}.ts`,
-`src/data/indexeddb-repository.ts` (+test), `src/lib/{money,dates}.ts`,
-`src/store/AppContext.tsx`, `src/pages/{Accounts,Budget,Dashboard,Goals,ImportExport,
-Investments,Planning,Recurring,Reports,Transactions}.tsx`,
-`src/components/transactions/TransferModal.tsx`, `scripts/verify-deployed.mjs`
-(+category/account-name search checks), KNOWN_ISSUES.md, REQUIREMENTS.md,
-CHANGELOG.md, BUILD_STATUS.md, NEXT_TASKS.md.
+**Files changed (this session):** `bbc205b` (search-wiring fix + harness search
+checks + audit docs); Phase 8 (rule application on import) in
+`scripts/verify-deployed.mjs`; BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
 
 **Tests run:** `npm test` (147 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (**70/70** on the local build; **68/70** against
-the live deployment — the two failures are the new category/account-name search
-checks, pending the search-wiring push), plus a live delete/undo check
-(351 → 301 → 351) in a prior session.
+`node scripts/verify-deployed.mjs` (**77/77** on the local build, two consecutive
+runs; **70/70** against the live deployment after the `bbc205b` push — the
+category/account-name search checks now pass live; Phase 8 ships with the next
+push), plus a live delete/undo check (351 → 301 → 351) in a prior session.
 
 **Tests passing:** 147/147. **Tests failing:** 0.
 

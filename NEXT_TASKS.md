@@ -24,12 +24,20 @@ Prioritized backlog. This list always represents the most useful next work.
 > search matches category/account names, saved-report rename, currency/dateFormat
 > settings applied. 147 tests; 70/70 local harness checks (live 68/70 pending the
 > search-wiring push).
+> ✅ **Done 2026-09-10:** Search-wiring fix pushed (`bbc205b`) — live deployment
+> re-verified at **70/70** (category/account-name search now works in the UI).
+> ✅ **Done 2026-09-10:** Rule application on import automated (Phase 8) — creates a
+> rule in Settings, imports a matching OFX statement, asserts the rule-applied
+> category appears on the imported row. **77/77** local harness checks.
 
 ## High
 
-1. **Push the search-wiring fix** (`src/pages/Transactions.tsx`: search box →
-   `q.search`) — closes the live 68/70 → 70/70 gap and ships ISSUE-009's UI half.
-2. **§48 acceptance remainder** — Finish the interactive flows the automated pass can't yet cover: rule application on import, and split/transfer editing. CSV import, QFX/OFX import (with FITID re-import dedupe), and the restore wizard (replace + merge) are already automated in `scripts/verify-deployed.mjs`.
+1. **Push `bbc205b` + Phase 8 harness work** — `bbc205b` is verified live at 70/70;
+   the Phase 8 rule-on-import checks (77/77 local) ship with the next push.
+2. **§48 acceptance remainder** — split/transfer editing is the only interactive
+   flow left. CSV import, QFX/OFX import (FITID dedupe), restore (replace/merge),
+   and rule application on import are already automated in
+   `scripts/verify-deployed.mjs`.
 
 ## Medium
 

@@ -881,6 +881,124 @@ async function main() {
     }
 
     // ========================================================================
+    // PHASE 8 — Rule application on import (end-to-end)
+    // ========================================================================
+    console.log('── Phase 8: Rule application on import ─────────────────────────');
+
+    try {
+      // 1. Create a rule in Settings: merchant contains "RULE-IMPORT" → set
+      //    category to "Groceries" (a seeded sample category).
+      await gotoRoute(page, '#/settings', 'Settings');
+      await clickButton(page, `b.textContent.trim() === 'Rules'`);
+      await waitFor(page, `document.body.innerText.includes('Rules automatically categorize')`, { timeout: 8000 });
+      const opened = await clickButton(page, `b.textContent.includes('New rule') || b.textContent.includes('Create your first rule')`);
+      check('Rules: opened the new-rule modal', opened);
+      await waitFor(page, `document.querySelector('input[placeholder="e.g. Amazon → Shopping"]') !== null`, { timeout: 8000 });
+
+      // Rule name.
+      await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="e.g. Amazon → Shopping"]');
+        if (!input) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'Rule Import Test');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`);
+      // Condition value: merchant contains "RULE-IMPORT".
+      await page.eval(`(() => {
+        const input = [...document.querySelectorAll('input[placeholder="Value"]')][0];
+        if (!input) return false;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'RULE-IMPORT');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      })()`);
+      // Action: set category to Groceries (select whose first option is
+      // "Select category…").
+      const catSel = await page.eval(`(() => {
+        const sel = [...document.querySelectorAll('select')].find((s) =>
+          [...s.options].some((o) => o.textContent.trim() === 'Select category…'));
+        if (!sel) return null;
+        const opt = [...sel.options].find((o) => o.textContent.trim() === 'Groceries');
+        if (!opt) return null;
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+        setter.call(sel, opt.value);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return opt.textContent.trim();
+      })()`);
+      check('Rules: category action set to Groceries', catSel === 'Groceries', catSel ?? 'select not found');
+      const saved = await clickButton(page, `b.textContent.trim() === 'Save rule'`);
+      check('Rules: rule saved', saved);
+      await waitFor(page, `document.body.innerText.includes('Rule Import Test')`, { timeout: 8000 });
+
+      // 2. Import an OFX statement whose merchant matches the rule.
+      const ruleOfxText = [
+        '<OFX>',
+        '  <SIGNONMSGSRSV1><SONRS><FI><ORG>Verify Financial</ORG><FID>9999</FID></FI></SONRS></SIGNONMSGSRSV1>',
+        '  <BANKMSGSRSV1><STMTTRNRS><STMTRS>',
+        '    <CURDEF>USD</CURDEF>',
+        '    <BANKACCTFROM><BANKID>999888777</BANKID><ACCTID>999900001111</ACCTID><ACCTTYPE>CHECKING</ACCTTYPE></BANKACCTFROM>',
+        '    <BANKTRANLIST>',
+        '      <STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260815</DTPOSTED><TRNAMT>-45.00</TRNAMT><FITID>VERIFY-RULE-0001</FITID><NAME>RULE-IMPORT ACME CORP</NAME><MEMO>rule memo</MEMO></STMTTRN>',
+        '    </BANKTRANLIST>',
+        '    <LEDGERBAL><BALAMT>2400.00</BALAMT><DTASOF>20260815</DTASOF></LEDGERBAL>',
+        '  </STMTRS></STMTTRNRS></BANKMSGSRSV1>',
+        '</OFX>',
+      ].join('\n');
+      const ruleOfxPath = join(fixtureDir, 'ledgerly-verify-rule.ofx');
+      writeFileSync(ruleOfxPath, ruleOfxText);
+
+      await gotoRoute(page, '#/import-export', 'Import & Export');
+      await clickButton(page, `b.textContent.trim() === 'QFX / OFX'`);
+      await waitFor(page, `document.body.innerText.includes('Upload a QFX or OFX statement')`, { timeout: 10000 });
+      const beforeRule = await page.eval(DB_TXN_COUNT);
+      await setFileInput(page, OFX_FILE_INPUT, ruleOfxPath);
+      await waitFor(page, `document.body.innerText.includes('transactions found')`, { timeout: 10000 });
+      const found = await page.eval(`(() => { const m = document.body.innerText.match(/(\\d+) transactions found/); return m ? Number(m[1]) : null; })()`);
+      check('Rule OFX: parser found the statement transaction', found === 1, `${found} transactions found`);
+
+      const account = await page.eval(`(() => {
+        const sel = [...document.querySelectorAll('select')].find((s) => [...s.options].some((o) => o.textContent.trim() === 'Select an account…'));
+        if (!sel) return null;
+        const opt = [...sel.options].find((o) => o.value !== '');
+        if (!opt) return null;
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+        setter.call(sel, opt.value);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return opt.textContent.trim();
+      })()`);
+      check('Rule OFX: wizard offers accounts', !!account, account ?? 'no account option');
+      await SLEEP(400);
+      await clickButton(page, `/^Import \\d+ transactions$/.test(b.textContent.trim())`);
+      await waitFor(page, `document.body.innerText.includes('Import complete')`, { timeout: 15000 });
+      const afterRule = await page.eval(DB_TXN_COUNT);
+      check('Rule OFX: import persisted the transaction', afterRule === beforeRule + 1, `${beforeRule} → ${afterRule}`);
+
+      // 3. The imported transaction must show the rule-applied category.
+      await gotoRoute(page, '#/transactions', 'Transactions');
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length > 0`, { timeout: 10000 });
+      await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="Search transactions…"]');
+        if (!input) return;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'RULE-IMPORT');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length === 1`, { timeout: 10000 });
+      const rowCat = await page.eval(`(() => {
+        const row = [...document.querySelectorAll('table tbody tr')][0];
+        if (!row) return null;
+        const tds = [...row.querySelectorAll('td')];
+        return { merchant: tds[2]?.innerText, category: tds[4]?.innerText };
+      })()`);
+      check('Rule applied on import: category set on the imported row',
+        rowCat?.merchant?.includes('RULE-IMPORT') && rowCat?.category?.trim() === 'Groceries',
+        rowCat ? `${rowCat.merchant} → ${rowCat.category}` : 'row not found');
+    } catch (e) {
+      check('Rule application on import', false, e.message);
+    }
+
+    // ========================================================================
     // Summary
     // ========================================================================
     const failed = results.filter((r) => !r.ok);
