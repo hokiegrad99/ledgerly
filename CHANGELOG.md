@@ -2,6 +2,18 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — §48 checklist verified against the live deployment (90/90)
+
+### Verified
+- Phases 8–9 harness commits (`2a0a7d1`, `18d1cbc`) pushed and deployed by the
+  Pages workflow (run completed 19:16 UTC).
+- `node scripts/verify-deployed.mjs` against **https://hokiegrad99.github.io/ledgerly/**:
+  **90 passed, 0 failed**, no console errors — onboarding/sample data, all routes,
+  search (merchant/tag/category/account), backup download, PWA offline, responsive
+  (375/768/1024/1440), CSV import + dedupe, restore replace/merge, QFX/OFX import +
+  FITID dedupe, rule-on-import, split + transfer editing.
+- The **entire §48 interactive acceptance checklist now passes in production**.
+
 ## 2026-09-10 — Split + transfer editing automated (Phase 9); §48 checklist complete
 
 ### Added

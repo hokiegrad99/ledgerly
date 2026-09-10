@@ -34,21 +34,23 @@ Prioritized backlog. This list always represents the most useful next work.
 > unlinks a transfer pair via "Create & link" (counterpart txn + pair record,
 > both sides marked transfer). **90/90** local harness checks — the **full §48
 > interactive acceptance checklist is now automated**.
+> ✅ **Done 2026-09-10:** Phases 8–9 pushed (`2a0a7d1`, `18d1cbc`) and the Pages
+> workflow deployed them; the live deployment re-verified at **90/90** checks,
+> no console errors — the entire §48 checklist now passes against production.
 
 ## High
 
-1. **Push the pending commits** — `bbc205b` (search fix, verified live at 70/70),
-   `2a0a7d1` (Phase 8), and the Phase 9 harness work (90/90 local) ship with the
-   next push; live then re-verifies at 90/90.
+(none — the §48 checklist is fully automated and verified live; remaining work
+is the Medium/Low backlog below)
 
 ## Medium
 
-3. **REQ-023** — Surface import session history in the UI (data currently recorded, not displayed).
-4. **REQ-031** — Auto-derive holdings from investment transactions (buy/sell/reinvest update shares + cost basis).
+1. **REQ-023** — Surface import session history in the UI (data currently recorded, not displayed).
+2. **REQ-031** — Auto-derive holdings from investment transactions (buy/sell/reinvest update shares + cost basis).
 
 ## Low
 
-5. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
-6. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
-7. Dashboard: widget resize support (currently reorder/remove/add only).
-8. Category transaction counts in the Settings categories UI (currently a stub).
+3. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
+4. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
+5. Dashboard: widget resize support (currently reorder/remove/add only).
+6. Category transaction counts in the Settings categories UI (currently a stub).

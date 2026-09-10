@@ -29,8 +29,10 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 38/50 = 76
 **Phase 6 — Backup/restore, PWA, GitHub Pages deployment** (spec phases 1–6 are
 substantially complete; Phase 7 — server mode — is deferred by design).
 
-**Current Task:** The §48 acceptance checklist is now fully automated (90/90).
-Remaining backlog: the Medium/Low items in NEXT_TASKS.md.
+**Current Task:** The §48 acceptance checklist is fully automated **and verified
+against the live deployment (90/90, 2026-09-10)**. Remaining backlog: the
+Medium/Low items in NEXT_TASKS.md (REQ-023 history UI, REQ-031 holdings
+auto-derivation, server-mode docs).
 
 ## Last Completed Work
 
@@ -179,13 +181,14 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
 
 ## Next Tasks
 
-1. **Push the search-wiring fix** (`src/pages/Transactions.tsx`: search box →
-   `q.search`) so the category/account-name search checks pass on the live site
-   (currently 68/70 live, 70/70 local).
+1. ~~Push the search-wiring fix~~ ~~and the Phase 8/9 harness commits~~ — **done:**
+   `bbc205b`, `2a0a7d1`, and `18d1cbc` are deployed; the live site verifies at
+   **90/90** (2026-09-10).
 2. Complete the §48 interactive acceptance remainder against the deployed app
    (rule application on import → split/transfer editing; extend
    `scripts/verify-deployed.mjs` where automatable — the CSV and QFX/OFX import and
-   restore wizards are already covered).
+   restore wizards are already covered). — **done:** Phases 8–9 automated and
+   verified live (90/90).
 3. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
 4. Update documentation as the above land.
 
@@ -228,8 +231,11 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
   backup round-trip, and the IndexedDB repository.
 
 **What remains unfinished:**
-- §48 interactive acceptance — fully automated (90/90 checks, Phases 1–9).
+- §48 interactive acceptance — fully automated and verified live (90/90 checks,
+  Phases 1–9).
 - Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
+- REQ-023 import-session history UI and REQ-031 holdings auto-derivation
+  (Medium backlog).
 
 **Current implementation state:**
 - `npm run typecheck` — PASS
@@ -239,9 +245,9 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
 
-**Next recommended task:** Push `bbc205b`, `2a0a7d1` (Phase 8), and the Phase 9
-work; the live site is at 70/70 and will reach 90/90 with the harness update
-(harness-only, no app code).
+**Next recommended task:** The §48 checklist is verified live (90/90). Move to
+the Medium backlog: REQ-023 (import-session history UI) and REQ-031 (auto-derive
+holdings from investment activity), then REQ-044/REQ-047 docs.
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
 **Files changed (this session):** `bbc205b` (search-wiring fix + harness search
@@ -250,8 +256,8 @@ checks + audit docs); Phase 8 (rule application on import) in
 
 **Tests run:** `npm test` (147 passing), `npm run typecheck`, `npm run build`,
 `node scripts/verify-deployed.mjs` (**90/90** on the local build, two consecutive
-runs; **70/70** against the live deployment after the `bbc205b` push — Phases
-8–9 ship with the next push), plus a live delete/undo check (351 → 301 → 351)
+runs; **90/90 against the live deployment** after the `18d1cbc` push — Phases
+8–9 are live), plus a live delete/undo check (351 → 301 → 351)
 in a prior session.
 
 **Tests passing:** 147/147. **Tests failing:** 0.
