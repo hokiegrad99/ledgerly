@@ -21,6 +21,9 @@ All notable changes to Ledgerly.
 - **105/105 checks pass** on the local build (two consecutive runs) and against
   the live deployment at https://hokiegrad99.github.io/ledgerly/ — no console
   errors. REQ-023 and REQ-031 are now verified end to end in production.
+- Harness commit `6bafc8a` pushed and deployed by the Pages workflow (run
+  completed 2026-09-10 20:28 UTC); the live deployment re-verified at **105/105**
+  with the new Phases 10–11 included.
 
 ## 2026-09-10 — Import history UI (REQ-023) + holdings auto-derivation (REQ-031)
 

@@ -51,7 +51,8 @@ is the Medium/Low backlog below)
 > removals. 163 tests; typecheck + build clean.
 > ✅ **Done 2026-09-10:** Both features automated in the verification harness
 > (Phases 10–11) — **105/105 checks** on the local build (twice) and against the
-> live deployment, no console errors.
+> live deployment, no console errors. Harness commit `6bafc8a` pushed and the
+> live deployment re-verified at 105/105 after the Pages deploy.
 
 ## Medium
 

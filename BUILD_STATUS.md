@@ -275,9 +275,9 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
 
-**Next recommended task:** Commit and push the Phase 10–11 harness additions,
-then continue the Low backlog: REQ-044 (ServerRepository doc + stub) and
-REQ-047 (FinancialDataProvider docs).
+**Next recommended task:** The Phase 10–11 harness work is pushed (`6bafc8a`)
+and verified live at 105/105. Continue the Low backlog: REQ-044
+(ServerRepository doc + stub) and REQ-047 (FinancialDataProvider docs).
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
 **Files changed (this session):** `bbc205b` (search-wiring fix + harness search
@@ -286,9 +286,9 @@ checks + audit docs); Phase 8 (rule application on import) in
 
 **Tests run:** `npm test` (163 passing), `npm run typecheck`, `npm run build`,
 `node scripts/verify-deployed.mjs` (**105/105** on the local build, two
-consecutive runs, and **against the live deployment** — Phases 10–11 cover
-REQ-023/REQ-031 end to end), plus a live delete/undo check (351 → 301 → 351)
-in a prior session.
+consecutive runs, and **against the live deployment** after the `6bafc8a` push —
+Phases 10–11 cover REQ-023/REQ-031 end to end in production), plus a live
+delete/undo check (351 → 301 → 351) in a prior session.
 
 **Tests passing:** 163/163. **Tests failing:** 0. **Harness checks:** 105/105.
 
