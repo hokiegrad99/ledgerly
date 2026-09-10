@@ -2,6 +2,19 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-10 — QFX/OFX import wizard automated in the verification harness
+
+### Added
+- `scripts/verify-deployed.mjs` Phase 7 — **QFX/OFX import wizard**, end to end:
+  uploads a generated OFX 1.x (SGML) statement via `DOM.setFileInputFiles`, asserts the
+  parser finds all 3 transactions, selects an account, imports them (351 → 354), then
+  re-imports the same statement and confirms **all 3 are skipped by FITID** (0 new
+  rows). The imported rows are searchable in Transactions.
+
+### Verified
+- **66/66 checks pass** on the local build and against the live deployment, with no
+  console errors.
+
 ## 2026-09-10 — CSV import + restore wizard automated in the verification harness
 
 ### Added

@@ -14,13 +14,14 @@ Prioritized backlog. This list always represents the most useful next work.
 > checks, no console errors; undo confirmed end-to-end (351 → 301 → 351).
 > ✅ **Done 2026-09-10:** `scripts/verify-deployed.mjs` now automates the **CSV import
 > wizard** (real file via `DOM.setFileInputFiles`, auto-mapping, account, preview,
-> import, re-import duplicate skip, searchable result) and the **restore wizard**
-> (validate, replace restores the backup exactly, merge re-adds a removed record) —
-> 58/58 checks on the local build and against the live deployment.
+> import, re-import duplicate skip, searchable result), the **restore wizard**
+> (validate, replace restores the backup exactly, merge re-adds a removed record), and
+> the **QFX/OFX import wizard** (generated OFX statement, FITID-based re-import dedupe,
+> searchable result) — 66/66 checks on the local build and against the live deployment.
 
 ## High
 
-1. **§48 acceptance remainder** — Finish the interactive flows the automated pass can't yet cover: QFX/OFX import wizard with a real file, rule application on import, and split/transfer editing. The CSV import wizard (with re-import duplicate skip) and the restore wizard (replace + merge) are already automated in `scripts/verify-deployed.mjs`.
+1. **§48 acceptance remainder** — Finish the interactive flows the automated pass can't yet cover: rule application on import, and split/transfer editing. CSV import, QFX/OFX import (with FITID re-import dedupe), and the restore wizard (replace + merge) are already automated in `scripts/verify-deployed.mjs`.
 
 ## Medium
 

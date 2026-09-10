@@ -754,6 +754,105 @@ async function main() {
     }
 
     // ========================================================================
+    // PHASE 7 — QFX/OFX import wizard (end-to-end)
+    // ========================================================================
+    console.log('── Phase 7: QFX/OFX import wizard ─────────────────────────────');
+
+    // A minimal OFX 1.x (SGML) statement with distinctive FITIDs, so re-import
+    // dedupe is exercised through the external-id path.
+    const ofxText = [
+      '<OFX>',
+      '  <SIGNONMSGSRSV1><SONRS><FI><ORG>Verify Financial</ORG><FID>9999</FID></FI></SONRS></SIGNONMSGSRSV1>',
+      '  <BANKMSGSRSV1><STMTTRNRS><STMTRS>',
+      '    <CURDEF>USD</CURDEF>',
+      '    <BANKACCTFROM><BANKID>999888777</BANKID><ACCTID>999900001111</ACCTID><ACCTTYPE>CHECKING</ACCTTYPE></BANKACCTFROM>',
+      '    <BANKTRANLIST>',
+      '      <STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260801</DTPOSTED><TRNAMT>-21.50</TRNAMT><FITID>VERIFY-OFX-0001</FITID><NAME>Verify OFX Alpha</NAME><MEMO>ofx memo alpha</MEMO></STMTTRN>',
+      '      <STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260802</DTPOSTED><TRNAMT>-77.25</TRNAMT><FITID>VERIFY-OFX-0002</FITID><NAME>Verify OFX Bravo</NAME><MEMO>ofx memo bravo</MEMO></STMTTRN>',
+      '      <STMTTRN><TRNTYPE>CREDIT</TRNTYPE><DTPOSTED>20260803</DTPOSTED><TRNAMT>310.00</TRNAMT><FITID>VERIFY-OFX-0003</FITID><NAME>Verify OFX Charlie</NAME><MEMO>ofx memo charlie</MEMO></STMTTRN>',
+      '    </BANKTRANLIST>',
+      '    <LEDGERBAL><BALAMT>2500.00</BALAMT><DTASOF>20260803</DTASOF></LEDGERBAL>',
+      '  </STMTRS></STMTTRNRS></BANKMSGSRSV1>',
+      '</OFX>',
+    ].join('\n');
+    const ofxPath1 = join(fixtureDir, 'ledgerly-verify.ofx');
+    const ofxPath2 = join(fixtureDir, 'ledgerly-verify-repeat.qfx');
+    writeFileSync(ofxPath1, ofxText);
+    writeFileSync(ofxPath2, ofxText);
+    const OFX_FILE_INPUT = 'input[type="file"][accept*=".ofx"]';
+    const numFrom = (message, re) => { const m = message.match(re); return m ? Number(m[1]) : null; };
+
+    /** Walk the QFX/OFX wizard: upload → account → import. */
+    const importOfx = async (path) => {
+      await waitFor(page, `document.body.innerText.includes('Upload a QFX or OFX statement')`, { timeout: 10000 });
+      await setFileInput(page, OFX_FILE_INPUT, path);
+      await waitFor(page, `document.body.innerText.includes('transactions found')`, { timeout: 10000 });
+      const found = await page.eval(`(() => { const m = document.body.innerText.match(/(\\d+) transactions found/); return m ? Number(m[1]) : null; })()`);
+
+      const account = await page.eval(`(() => {
+        const sel = [...document.querySelectorAll('select')].find((s) => [...s.options].some((o) => o.textContent.trim() === 'Select an account…'));
+        if (!sel) return null;
+        const opt = [...sel.options].find((o) => o.value !== '');
+        if (!opt) return null;
+        const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+        setter.call(sel, opt.value);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return { name: opt.textContent.trim() };
+      })()`);
+      check('OFX wizard offers accounts', !!account, account ? account.name : 'no account option');
+      await SLEEP(400);
+
+      await clickButton(page, `/^Import \\d+ transactions$/.test(b.textContent.trim())`);
+      await waitFor(page, `document.body.innerText.includes('Import complete')`, { timeout: 15000 });
+      const text = await page.eval(`document.body.innerText`);
+      const message = (text.match(/Imported \d+ transactions[^\n]*/) ?? [''])[0];
+      return { found, message };
+    };
+
+    try {
+      await gotoRoute(page, '#/import-export', 'Import & Export');
+      await clickButton(page, `b.textContent.trim() === 'QFX / OFX'`);
+
+      const beforeOfx = await page.eval(DB_TXN_COUNT);
+      const first = await importOfx(ofxPath1);
+      const importedFirst = numFrom(first.message, /Imported (\d+) transactions/);
+      const skippedFirst = numFrom(first.message, /Skipped (\d+) duplicates/);
+      check('OFX import parsed all statement transactions', first.found === 3, `${first.found} transactions found`);
+      check('OFX import added every transaction (no false duplicates)',
+        importedFirst === first.found && skippedFirst === 0, first.message);
+      const afterFirstOfx = await page.eval(DB_TXN_COUNT);
+      check('OFX import persisted the new transactions', afterFirstOfx === beforeOfx + (importedFirst ?? 0),
+        `${beforeOfx} → ${afterFirstOfx}`);
+
+      // Re-import the same statement — FITIDs must all be recognized as duplicates.
+      await clickButton(page, `b.textContent.trim() === 'Import another file'`);
+      await SLEEP(500);
+      const second = await importOfx(ofxPath2);
+      const importedSecond = numFrom(second.message, /Imported (\d+) transactions/);
+      const skippedSecond = numFrom(second.message, /Skipped (\d+) duplicates/);
+      check('OFX re-import skipped every transaction by FITID',
+        importedSecond === 0 && skippedSecond === second.found, second.message);
+      const afterSecondOfx = await page.eval(DB_TXN_COUNT);
+      check('OFX re-import added no new rows', afterSecondOfx === afterFirstOfx,
+        `${afterFirstOfx} → ${afterSecondOfx}`);
+
+      // Imported rows are visible in Transactions.
+      await gotoRoute(page, '#/transactions', 'Transactions');
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length > 0`, { timeout: 10000 });
+      await page.eval(`(() => {
+        const input = document.querySelector('input[placeholder="Search transactions…"]');
+        if (!input) return;
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+        setter.call(input, 'Verify OFX');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await waitFor(page, `document.querySelectorAll('table tbody tr').length === 3`, { timeout: 10000 });
+      check('OFX transactions are searchable', true, '3 rows for "Verify OFX"');
+    } catch (e) {
+      check('QFX/OFX import wizard', false, e.message);
+    }
+
+    // ========================================================================
     // Summary
     // ========================================================================
     const failed = results.filter((r) => !r.ok);

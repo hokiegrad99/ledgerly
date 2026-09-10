@@ -29,10 +29,18 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 37/50 = 74
 **Phase 6 — Backup/restore, PWA, GitHub Pages deployment** (spec phases 1–6 are
 substantially complete; Phase 7 — server mode — is deferred by design).
 
-**Current Task:** Finish the §48 interactive acceptance remainder (QFX/OFX import
-with a real file, rule application on import, split/transfer editing).
+**Current Task:** Finish the §48 interactive acceptance remainder (rule application
+on import, split/transfer editing).
 
 ## Last Completed Work
+
+### 2026-09-10 — QFX/OFX import wizard automated
+- Added Phase 7 to `scripts/verify-deployed.mjs`: uploads a generated OFX statement
+  (`DOM.setFileInputFiles`), asserts the parser finds all 3 transactions, selects an
+  account, imports them (351 → 354), then re-imports the same statement and confirms
+  **all 3 are skipped by FITID** (0 new rows). Imported rows are searchable.
+- **66/66 checks pass** on the local build and against the live deployment, no console
+  errors.
 
 ### 2026-09-10 — CSV import + restore wizard automated
 - Extended `scripts/verify-deployed.mjs` with two phases:
@@ -114,34 +122,34 @@ with a real file, rule application on import, split/transfer editing).
 ## Current Work
 
 **§48 acceptance remainder** — Status: IN_PROGRESS.
-- Automated acceptance subset + responsive + PWA + CSV import + restore wizard
-  verified against the live deployment (`scripts/verify-deployed.mjs`, **58/58**,
-  no console errors).
-- Remaining (interactive, browser): QFX/OFX import with a real file, rule
-  application on import, split/transfer editing.
+- Automated acceptance subset + responsive + PWA + CSV import + QFX/OFX import +
+  restore wizard verified against the live deployment (`scripts/verify-deployed.mjs`,
+  **66/66**, no console errors).
+- Remaining (interactive, browser): rule application on import, split/transfer editing.
 - Deployed: the REQ-035 (tag search), REQ-006 (Reports flex-wrap), ISSUE-004
   (grouped filter), and ISSUE-005 (undo) fixes are live and verified.
 
 ## Next Tasks
 
 1. Complete the §48 interactive acceptance remainder against the deployed app
-   (QFX/OFX import with a real file → rule application on import → split/transfer
-   editing; extend `scripts/verify-deployed.mjs` where automatable — the CSV import
-   and restore wizards are already covered).
+   (rule application on import → split/transfer editing; extend
+   `scripts/verify-deployed.mjs` where automatable — the CSV and QFX/OFX import and
+   restore wizards are already covered).
 2. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
 3. Update documentation as the above land.
 
 ## SESSION HANDOFF
 
-**Last session:** 2026-09-10 (CSV import + restore wizard automated in the harness)
+**Last session:** 2026-09-10 (QFX/OFX import wizard automated in the harness)
 
 **What was accomplished (this session):**
 - Extended `scripts/verify-deployed.mjs` with Phase 5 (CSV import wizard: real file,
   auto-mapping, account selection, preview, import, re-import duplicate skip, and the
-  imported rows are searchable) and Phase 6 (restore wizard: validate, replace restores
-  the backup exactly, merge re-adds a removed record).
-- **58/58 checks pass** on the local build (twice) and against the live deployment;
-  no console errors.
+  imported rows are searchable), Phase 6 (restore wizard: validate, replace restores the
+  backup exactly, merge re-adds a removed record), and Phase 7 (QFX/OFX import wizard:
+  generated OFX statement, FITID-based re-import dedupe, searchable result).
+- **66/66 checks pass** on the local build and against the live deployment; no console
+  errors.
 
 **What was accomplished (prior session):**
 - Fixed ISSUE-005 (short-lived undo buffer for transaction deletes) and ISSUE-004
@@ -169,8 +177,8 @@ with a real file, rule application on import, split/transfer editing).
   backup round-trip, and the IndexedDB repository.
 
 **What remains unfinished:**
-- §48 interactive acceptance remainder (QFX/OFX import with a real file, rule
-  application on import, split/transfer editing).
+- §48 interactive acceptance remainder (rule application on import, split/transfer
+  editing).
 - Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
 
 **Current implementation state:**
@@ -181,15 +189,15 @@ with a real file, rule application on import, split/transfer editing).
 
 **Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001/002 closed, ISSUE-003/004/005 fixed).
 
-**Next recommended task:** Automate the QFX/OFX import wizard and rule application on
-import in `scripts/verify-deployed.mjs`, then finish the §48 split/transfer editing checks.
+**Next recommended task:** Automate rule application on import in
+`scripts/verify-deployed.mjs`, then finish the §48 split/transfer editing checks.
 
 **Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
-**Files changed (this session):** `scripts/verify-deployed.mjs` (+ CSV import and
-restore wizard phases), BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
+**Files changed (this session):** `scripts/verify-deployed.mjs` (+ CSV import, restore,
+and QFX/OFX import wizard phases), BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
 
 **Tests run:** `npm test` (136 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (**58/58** against both the local build and the live
+`node scripts/verify-deployed.mjs` (**66/66** against both the local build and the live
 deployment), plus a live delete/undo check (351 → 301 → 351).
 
 **Tests passing:** 136/136. **Tests failing:** 0.
