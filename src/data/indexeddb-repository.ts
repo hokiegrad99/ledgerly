@@ -149,7 +149,83 @@ export class IndexedDBRepository implements DataRepository {
 
   // --------------------------------------------------------- Transactions
   async queryTransactions(q: TransactionQuery = {}): Promise<TransactionPage> {
-    // Narrow with indexes where possible, then filter in memory.
+    // Fast path (REQ-009): with no post-filters and a date sort, the indexed
+    // range IS the result set. Count it via the index and materialize only the
+    // requested page: a key cursor locates the date window covering the offset
+    // window (keys are cheap — no row deserialization), then a value cursor
+    // reads just that window. Rows within a date are sorted by amount desc to
+    // keep the exact sort contract of the full scan (date, then amount).
+    const hasPostFilters = !!(q.categoryId || (q.categoryIds && q.categoryIds.length > 0) || q.type ||
+      q.reviewed === true || q.unreviewed === true || q.pending === true ||
+      q.transferOnly === true || q.merchant || q.tagId || q.search);
+    const hasAccount = !!q.accountId;
+    const sort = q.sort ?? 'date-desc';
+    const dateSorted = sort === 'date-desc' || sort === 'date-asc';
+
+    if (hasPostFilters || !dateSorted) {
+      return this.queryTransactionsFullScan(q);
+    }
+
+    // Account-only queries go through the compound index with an open date
+    // range so rows come back date-ordered. Compound keys are [accountId, date].
+    const compound = hasAccount;
+    const idx = compound
+      ? db.transactions.where('[accountId+date]').between(
+          [q.accountId!, q.dateFrom ?? '0000-00-00'],
+          [q.accountId!, q.dateTo ?? '9999-99-99'],
+        )
+      : db.transactions.where('date').between(q.dateFrom ?? '0000-00-00', q.dateTo ?? '9999-99-99');
+
+    const total = await idx.count();
+    const offset = q.offset ?? 0;
+    const limit = q.limit ?? 200;
+
+    // Window covers everything → materialize and sort in memory (same cost as
+    // the full scan; no regression). Used by summary-style queries.
+    if (offset + limit >= total) {
+      const rows = await idx.toArray();
+      return { items: this.sortDateRows(rows, sort as 'date-desc' | 'date-asc').slice(offset, offset + limit), total };
+    }
+
+    // Keys in the requested cursor order (tiny — no row deserialization). From
+    // them, derive the date window covering rows [offset, offset+limit).
+    const ordered = sort === 'date-asc' ? idx : idx.reverse();
+    const keys = (await ordered.keys()) as Array<string | [string, string]>;
+    const dateOf = (k: string | [string, string]) => (compound ? k[1] : k);
+    const first = dateOf(keys[offset]);
+    const last = dateOf(keys[Math.min(offset + limit, total) - 1]);
+    // Index of the window's first date in cursor order = rows before its block;
+    // the page slice therefore starts at offset − that count.
+    const rowsBeforeFirstBlock = keys.findIndex((k) => dateOf(k) === first);
+
+    // Materialize only the window's rows (bounds ordered — cursor may run
+    // descending), then sort with the canonical contract and slice the page.
+    const lo = sort === 'date-asc' ? first : last;
+    const hi = sort === 'date-asc' ? last : first;
+    const rows = compound
+      ? await db.transactions
+          .where('[accountId+date]')
+          .between([q.accountId!, lo], [q.accountId!, hi], true, true)
+          .toArray()
+      : await db.transactions.where('date').between(lo, hi, true, true).toArray();
+    const sorted = this.sortDateRows(rows, sort as 'date-desc' | 'date-asc');
+    const start = offset - rowsBeforeFirstBlock;
+    return { items: sorted.slice(start, start + limit), total };
+  }
+
+  /** Sort by date (asc or desc), ties by amount desc — the canonical order.
+   *  ISO YYYY-MM-DD strings compare relationally, which is far faster than
+   *  localeCompare at 100k-row scale. */
+  private sortDateRows(rows: Transaction[], sort: 'date-desc' | 'date-asc'): Transaction[] {
+    const cmp = (a: Transaction, b: Transaction) =>
+      sort === 'date-asc'
+        ? (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || b.amount - a.amount
+        : (b.date < a.date ? -1 : b.date > a.date ? 1 : 0) || b.amount - a.amount;
+    return rows.sort(cmp);
+  }
+
+  /** Original query path: materialize, filter in memory, sort, slice. */
+  private async queryTransactionsFullScan(q: TransactionQuery): Promise<TransactionPage> {
     const hasDate = q.dateFrom || q.dateTo;
     const hasAccount = !!q.accountId;
     let promise: Promise<Transaction[]>;

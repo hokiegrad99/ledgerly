@@ -66,6 +66,30 @@ describe('IndexedDBRepository', () => {
     expect(page3.items).toHaveLength(5);
   });
 
+  it('fast-path pagination matches the full-scan path exactly (ties within a date)', async () => {
+    await repo.saveAccount(account({ id: 'acc1' }));
+    // 30 txns across 3 dates × 10 ties each — page size 7 slices *inside* a
+    // tie group, so the fast path's per-date amount-desc ordering is exercised.
+    const txns = Array.from({ length: 30 }, (_, i) =>
+      txn({ accountId: 'acc1', date: `2024-09-${String((i % 3) + 1).padStart(2, '0')}`, amount: -100 - i }));
+    await repo.saveTransactions(txns);
+    const full = await repo.queryTransactions({ limit: 1000 }); // > total → in-memory path
+    for (let offset = 0; offset < 30; offset += 7) {
+      const page = await repo.queryTransactions({ offset, limit: 7 });
+      expect(page.total).toBe(30);
+      expect(page.items.map((t) => t.id)).toEqual(full.items.slice(offset, offset + 7).map((t) => t.id));
+    }
+    // Same with an account filter (compound-index path).
+    for (let offset = 0; offset < 30; offset += 11) {
+      const page = await repo.queryTransactions({ accountId: 'acc1', offset, limit: 11 });
+      expect(page.items.map((t) => t.id)).toEqual(full.items.slice(offset, offset + 11).map((t) => t.id));
+    }
+    // And descending vs ascending agree with the scan on their own orders.
+    const asc = await repo.queryTransactions({ sort: 'date-asc', limit: 1000 });
+    const ascFast = await repo.queryTransactions({ sort: 'date-asc', offset: 5, limit: 8 });
+    expect(ascFast.items.map((t) => t.id)).toEqual(asc.items.slice(5, 13).map((t) => t.id));
+  });
+
   it('filters by account and date range', async () => {
     await repo.saveAccount(account({ id: 'acc1' }));
     await repo.saveAccount(account({ id: 'acc2' }));
