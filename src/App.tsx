@@ -1,23 +1,24 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { useApp } from './store/AppContext';
 import { PageLoader, Card } from './components/ui/basic';
 import { Landmark, Sparkles, FileDown } from 'lucide-react';
-import { buildSampleData } from './data/sample-data';
 
-import DashboardPage from './pages/Dashboard';
-import TransactionsPage from './pages/Transactions';
-import BudgetPage from './pages/Budget';
-import GoalsPage from './pages/Goals';
-import RecurringPage from './pages/Recurring';
-import AccountsPage from './pages/Accounts';
-import InvestmentsPage from './pages/Investments';
-import NetWorthPage from './pages/NetWorth';
-import ReportsPage from './pages/Reports';
-import PlanningPage from './pages/Planning';
-import ImportExportPage from './pages/ImportExport';
-import SettingsPage from './pages/Settings';
+// Route-level code splitting (REQ-009): each page ships as its own chunk so the
+// initial download stays small; the heavy chart/report pages load on demand.
+const DashboardPage = lazy(() => import('./pages/Dashboard'));
+const TransactionsPage = lazy(() => import('./pages/Transactions'));
+const BudgetPage = lazy(() => import('./pages/Budget'));
+const GoalsPage = lazy(() => import('./pages/Goals'));
+const RecurringPage = lazy(() => import('./pages/Recurring'));
+const AccountsPage = lazy(() => import('./pages/Accounts'));
+const InvestmentsPage = lazy(() => import('./pages/Investments'));
+const NetWorthPage = lazy(() => import('./pages/NetWorth'));
+const ReportsPage = lazy(() => import('./pages/Reports'));
+const PlanningPage = lazy(() => import('./pages/Planning'));
+const ImportExportPage = lazy(() => import('./pages/ImportExport'));
+const SettingsPage = lazy(() => import('./pages/Settings'));
 
 function OnboardingGate({ children }: { children: React.ReactNode }) {
   const { ready, accounts, transactionCount, repo, refresh, settings, updateSettings } = useApp();
@@ -34,6 +35,9 @@ function OnboardingGate({ children }: { children: React.ReactNode }) {
   const loadDemo = async () => {
     setLoading(true);
     try {
+      // Loaded on demand so the fictional ~300-transaction dataset never sits
+      // in the initial bundle.
+      const { buildSampleData } = await import('./data/sample-data');
       const demo = buildSampleData();
       await repo.importAll(demo, { replace: false });
       await updateSettings({ demoDataLoaded: true, firstName: 'Alex', householdName: 'The Morgan Household' });
@@ -96,21 +100,23 @@ export default function App() {
   return (
     <OnboardingGate>
       <AppShell>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/transactions" element={<TransactionsPage />} />
-          <Route path="/budget" element={<BudgetPage />} />
-          <Route path="/goals" element={<GoalsPage />} />
-          <Route path="/recurring" element={<RecurringPage />} />
-          <Route path="/accounts" element={<AccountsPage />} />
-          <Route path="/investments" element={<InvestmentsPage />} />
-          <Route path="/net-worth" element={<NetWorthPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/planning" element={<PlanningPage />} />
-          <Route path="/import-export" element={<ImportExportPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/transactions" element={<TransactionsPage />} />
+            <Route path="/budget" element={<BudgetPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/recurring" element={<RecurringPage />} />
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/investments" element={<InvestmentsPage />} />
+            <Route path="/net-worth" element={<NetWorthPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/planning" element={<PlanningPage />} />
+            <Route path="/import-export" element={<ImportExportPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </AppShell>
     </OnboardingGate>
   );
