@@ -199,7 +199,9 @@ export default function BudgetPage() {
   };
 
   const flexSpent = useMemo(() => {
-    // Flex mode: sum spending across budgeted categories.
+    // Flex mode: one flexible spending total — all expense spending in the
+    // month (transfers and excluded accounts/tags already filtered out of
+    // spendByCat), not just the categories budgeted in category mode.
     let spent = 0;
     for (const [, amt] of spendByCat) spent += amt;
     return spent;
