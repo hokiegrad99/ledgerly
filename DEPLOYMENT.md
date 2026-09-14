@@ -29,7 +29,7 @@ git push -u origin main
 The included workflow (`.github/workflows/deploy.yml`) does:
 
 1. `npm ci`
-2. `npm test` (119 tests)
+2. `npm test` (164 tests)
 3. `npm run typecheck`
 4. `npm run build`
 5. `actions/upload-pages-artifact` → `actions/deploy-pages`

@@ -162,7 +162,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md), [DATA_MODEL.md](./DATA_MODEL.md), and
 ## Testing
 
 ```bash
-npm test            # 119 tests
+npm test            # 164 tests
 npm run typecheck
 npm run project:status   # health report (requirements, tests, build, issues)
 ```

@@ -2,6 +2,60 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-13 — Cash-flow diagram clipping fix + zoom/pan (ISSUE-012)
+
+### Fixed
+- The Monarch-style cash-flow diagram ("Cash flow (Monarch-style)" report) no
+  longer clips its right-hand labels: `FlowChart` now reserves a 280-unit label
+  gutter inside the SVG viewBox, so the last column's category/amount/% labels
+  always render fully (logged as ISSUE-012).
+
+### Added
+- Zoom controls (100–300%) for the cash-flow diagram: zoom in/out/reset with a
+  live zoom % readout; zoomed canvases pan by scroll in both axes; scroll
+  re-anchors on zoom change and month navigation. Dense months can be inspected
+  up close instead of being shrunk to fit.
+- `scripts/probe-cashflow-map.mjs` extended 9 → 13 checks: a `getBBox` assertion
+  that the rightmost label ends inside the viewBox, plus zoom-in scrollability
+  and reset/fit-width/scroll-anchored assertions.
+
+### Verified
+- Cash-flow probe **13/13 (twice)**; **164 unit tests**; typecheck and production
+  build clean.
+
+## 2026-09-13 — Route-level code splitting (REQ-009) + flex budget verified (REQ-025)
+
+### Added
+- `scripts/probe-flex-budget.mjs` — headless-Chrome probe verifying REQ-025 flex
+  budget mode end to end: category → flex mode switch, flex-amount save, persistence
+  of the `mode=flex` row with the exact cent amount, restore after reload, and flex
+  totals (spent/remaining) checked against independent math recomputed from IndexedDB
+  with the exact domain semantics (categorized non-transfer expenses, account and
+  system-tag budget exclusions honored), plus a round-trip back to category mode with
+  budget items intact. **11/11 checks pass, two consecutive runs.**
+
+### Changed
+- **Route-level code splitting** (first REQ-009 step): every page in `src/App.tsx` is
+  now loaded via `React.lazy` with a `Suspense` fallback, and the fictional sample
+  dataset is dynamically imported only when chosen. Initial JS bundle drops from
+  **992.6 kB to 317.2 kB** minified (**276 kB → 103 kB gzip**); recharts moves to an
+  on-demand `Charts` chunk; each page ships as its own lazy chunk. The Vite
+  >500 kB chunk-size warning is gone.
+- Corrected the stale "sum spending across budgeted categories" comment in
+  `Budget.tsx` — flex spending is the single flexible total across the month, not
+  budgeted-categories-only.
+- Documentation drift fixed: test counts updated to 163 (README.md,
+  DEPLOYMENT.md, REQUIREMENTS.md §48), and BUILD_STATUS.md's stale Current Work /
+  Next Tasks / SESSION HANDOFF sections reconciled with the actual project state.
+
+### Verified
+- **105/105** harness checks against the live deployment
+  (https://hokiegrad99.github.io/ledgerly/) and **105/105** on the code-split local
+  build — no console errors.
+- Cash-flow probe 9/9 after the splitting change; 163/163 unit tests; typecheck and
+  production build clean.
+- REQ-025 marked VERIFIED (41 of 50 → 82%).
+
 ## 2026-09-10 — Monarch-style cash-flow report (REQ-033 enhancement)
 
 ### Added

@@ -171,3 +171,25 @@ Never silently ignore known problems — log them here.
   `AppContext` applies the saved settings on load and whenever they change. All
   date-displaying pages now use `formatDate` instead of raw ISO strings.
   (`weekStart` remains inert by design — no weekly view exists yet.)
+
+## ISSUE-012
+- **Title:** Monarch-style cash-flow diagram is clipped on the right edge
+- **Severity:** Medium
+- **Status:** FIXED
+- **Affected requirement:** REQ-033
+- **Steps to reproduce:** Reports → "Cash flow (Monarch-style)" for a month with
+  several spending categories — the last column's labels (category name, amount,
+  % of income) are cut off at the right edge of the card.
+- **Expected:** All labels render fully inside the diagram.
+- **Actual:** The SVG viewBox was `0 0 1040 h` with the last node column ending
+  at x ≈ 1026, but last-column labels are drawn to the *right* of the node —
+  outside the viewBox, so the browser clipped them. The `overflow-x-auto`
+  wrapper never scrolled because the SVG always scaled to `w-full`.
+- **Resolution:** `FlowChart` now reserves a 280-unit right-hand label gutter
+  (node columns laid out inside 760 viewBox units) so outside-right labels always
+  fit, and gained zoom controls (100–300%) with scroll panning — the zoomed
+  canvas uses a percentage width so the scroll container is not stretched, and
+  scroll re-anchors on zoom change and month navigation. `CashFlowMapView` adds
+  the zoom toolbar. Probe extended 9 → 13 checks (getBBox no-clip assertion,
+  zoom scrollability, reset/fit-width/scroll-anchor); **13/13 twice**, 164 unit
+  tests, typecheck and production build clean.

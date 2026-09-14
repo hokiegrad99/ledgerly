@@ -6,7 +6,7 @@
 
 ## Overall Progress
 
-Completion: **80%** (40 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
+Completion: **82%** (41 of 50 requirements verified; DEFERRED/NOT_STARTED server-mode items excluded from completion).
 
 ### Requirements by status
 
@@ -14,14 +14,14 @@ Completion: **80%** (40 of 50 requirements verified; DEFERRED/NOT_STARTED server
 |---|---|
 | NOT_STARTED | 5 |
 | IN_PROGRESS | 0 |
-| IMPLEMENTED | 5 |
+| IMPLEMENTED | 4 |
 | TESTING | 0 |
-| VERIFIED | 40 |
+| VERIFIED | 41 |
 | BLOCKED | 0 |
 | DEFERRED | 0 |
 | **Total** | **50** |
 
-Completion Percentage = VERIFIED / total active requirements × 100 = 40/50 = 80%.
+Completion Percentage = VERIFIED / total active requirements × 100 = 41/50 = 82%.
 *(Run `npm run project:status` to regenerate live numbers.)*
 
 ## Current Development Phase
@@ -30,11 +30,48 @@ Completion Percentage = VERIFIED / total active requirements × 100 = 40/50 = 80
 substantially complete; Phase 7 — server mode — is deferred by design).
 
 **Current Task:** The §48 acceptance checklist is fully automated **and verified
-against the live deployment (90/90, 2026-09-10)**. Latest feature: the
-Monarch-style cash-flow report (REQ-033 enhancement). Remaining backlog: the
-Low items in NEXT_TASKS.md (server-mode docs, dashboard niceties).
+against the live deployment (105/105, re-confirmed 2026-09-13)**. Latest work:
+Monarch cash-flow diagram clipping fix + zoom/pan controls (ISSUE-012),
+route-level code splitting (REQ-009 step), and REQ-025 flex budget verified end
+to end. Remaining backlog: the Medium/Low items in NEXT_TASKS.md (server-mode
+docs, dashboard niceties) and the 100k-transaction validation for REQ-009.
 
 ## Last Completed Work
+
+### 2026-09-13 — Cash-flow diagram clipping fix + zoom/pan (ISSUE-012)
+- Fixed the Monarch-style cash-flow diagram clipping its right-hand labels (the
+  last column's labels were drawn outside the SVG viewBox): `FlowChart` now
+  reserves a 280-unit label gutter and lays out node columns inside 760 viewBox
+  units, so category/amount/% labels always render fully.
+- Added zoom (100–300%) + reset controls with scroll panning: the zoomed canvas
+  uses a percentage width so the scroll container is not stretched, and scroll
+  re-anchors on zoom change and month navigation (`CashFlowMapView` toolbar).
+- `scripts/probe-cashflow-map.mjs` extended 9 → 13 checks (no-clip `getBBox`
+  assertion, zoom scrollability, reset/fit-width/scroll-anchor). **13/13 twice**;
+  164 unit tests, typecheck, and production build clean.
+
+### 2026-09-13 — Route-level code splitting (REQ-009) + REQ-025 flex budget verified
+- **Code splitting:** every page in `src/App.tsx` is now a `React.lazy` route with a
+  `Suspense` fallback, and the sample-data module is dynamically imported on demand.
+  Initial JS bundle **992.6 kB → 317.2 kB** minified (**276 → 103 kB gzip**); recharts
+  is isolated in an on-demand `Charts` chunk (426 kB); each page ships as its own chunk.
+  The Vite >500 kB chunk warning is gone. First-load performance directly supports the
+  REQ-009 targets.
+- **REQ-025 flex budget verified end to end:** new `scripts/probe-flex-budget.mjs`
+  (11 checks): Budget page renders in category mode; mode switch category → flex;
+  flex amount entered and saved; the budget row is persisted as `mode=flex` with the
+  exact cent amount; flex mode + amount restored after a full reload; **spent matches
+  independent IndexedDB math** (all categorized non-transfer expense spending in the
+  month, honoring account `includeInBudget=false` and the exclude-from-budget system
+  tag); remaining = flex − spent; round-trip back to category mode with budget items
+  intact. **11/11 checks pass, two consecutive runs.**
+- A stale comment in `Budget.tsx` ("sum spending across budgeted categories") was
+  corrected — flex spending is the single flexible total, not budgeted-categories-only.
+- Re-verified after the splitting change: **163/163 tests**, typecheck clean,
+  production build clean (no chunk warning), cash-flow probe **9/9**, and the full
+  harness **105/105** on both the local build and the live deployment.
+- REQ-025 marked VERIFIED (41 of 50 → 82%). Doc drift fixed: test counts updated to
+  163 in README/DEPLOYMENT/REQUIREMENTS; stale BUILD_STATUS sections reconciled.
 
 ### 2026-09-10 — Monarch-style cash-flow report (REQ-033 enhancement)
 - New report kind **"Cash flow (Monarch-style)"** (`cashflow-map`) in Reports,
@@ -224,96 +261,87 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
 
 ## Current Work
 
-**§48 acceptance remainder** — Status: IN_PROGRESS.
-- Automated acceptance subset + responsive + PWA + CSV import + QFX/OFX import +
-  restore wizard verified against the live deployment (`scripts/verify-deployed.mjs`,
-  **66/66**, no console errors).
-- Remaining (interactive, browser): rule application on import, split/transfer editing.
-- Deployed: the REQ-035 (tag search), REQ-006 (Reports flex-wrap), ISSUE-004
-  (grouped filter), and ISSUE-005 (undo) fixes are live and verified.
+**Verification & hardening** — Status: IN_PROGRESS.
+- The full §48 acceptance checklist is automated in `scripts/verify-deployed.mjs`
+  (Phases 1–11) and passes **105/105** on the local build and against the live
+  deployment (re-confirmed 2026-09-13).
+- Remaining: REQ-009's 100k-transaction load validation; REQ-007 accessibility audit;
+  REQ-049/REQ-050 doc-consistency passes; the Medium/Low backlog in NEXT_TASKS.md.
 
 ## Next Tasks
 
-1. ~~Push the search-wiring fix~~ ~~and the Phase 8/9 harness commits~~ — **done:**
-   `bbc205b`, `2a0a7d1`, and `18d1cbc` are deployed; the live site verifies at
-   **90/90** (2026-09-10).
-2. Complete the §48 interactive acceptance remainder against the deployed app
-   (rule application on import → split/transfer editing; extend
-   `scripts/verify-deployed.mjs` where automatable — the CSV and QFX/OFX import and
-   restore wizards are already covered). — **done:** Phases 8–9 automated and
-   verified live (90/90).
-3. Add a server-mode design doc + optional `ServerRepository` stub (REQ-044).
-4. Update documentation as the above land.
+1. ~~§48 interactive acceptance~~ — **done:** fully automated (Phases 1–11) and
+   verified live at **105/105** (re-confirmed 2026-09-13).
+2. ~~REQ-025 flex budget verification~~ — **done:** `scripts/probe-flex-budget.mjs`
+   11/11 twice (2026-09-13); marked VERIFIED.
+3. REQ-009: validate app behavior with a 100k-transaction dataset, then mark VERIFIED.
+4. REQ-044 — server-mode design doc + optional `ServerRepository` stub.
+5. REQ-047 — document the `FinancialDataProvider` abstraction in ARCHITECTURE.md.
+6. Low backlog: dashboard widget resize; category transaction counts in Settings.
 
 ## SESSION HANDOFF
 
-**Last session:** 2026-09-10 (QFX/OFX import wizard automated in the harness)
+**Last session:** 2026-09-13 (code splitting + REQ-025 flex-budget verification)
 
 **What was accomplished (this session):**
-- Extended `scripts/verify-deployed.mjs` with Phase 5 (CSV import wizard: real file,
-  auto-mapping, account selection, preview, import, re-import duplicate skip, and the
-  imported rows are searchable), Phase 6 (restore wizard: validate, replace restores the
-  backup exactly, merge re-adds a removed record), and Phase 7 (QFX/OFX import wizard:
-  generated OFX statement, FITID-based re-import dedupe, searchable result).
-- **66/66 checks pass** on the local build and against the live deployment; no console
-  errors.
+- Route-level code splitting in `src/App.tsx` (React.lazy per page, Suspense fallback,
+  dynamic `import('./data/sample-data')`): initial bundle 992.6 kB → 317.2 kB minified
+  (276 → 103 kB gzip); recharts isolated in a lazy `Charts` chunk; Vite chunk warning
+  gone. First REQ-009 step, recorded in REQUIREMENTS.md.
+- New `scripts/probe-flex-budget.mjs` — REQ-025 verified end to end (mode switch both
+  directions, persistence across reload, flex totals vs independent IndexedDB math,
+  budget items intact after round-trip): **11/11 checks, two consecutive runs**.
+  REQ-025 marked VERIFIED (41/50 → 82%).
+- Live deployment re-verified: `node scripts/verify-deployed.mjs` → **105/105**, no
+  console errors; the code-split local build also passes the full harness 105/105 and
+  the cash-flow probe 9/9.
+- Doc drift fixed: test counts updated to 163 (README, DEPLOYMENT, REQUIREMENTS);
+  stale "Current Work" / "Next Tasks" / "SESSION HANDOFF" sections in this file
+  reconciled with the actual project state.
 
-**What was accomplished (prior session):**
-- Fixed ISSUE-005 (short-lived undo buffer for transaction deletes) and ISSUE-004
-  (Reports category filter grouped by category group); 136 tests passing.
-- Committed `c061f3b`, pushed to `main`; Pages workflow succeeded; live re-verified at
-  39/39; undo confirmed live (351 → 301 → 351); docs commit `6ab99e6`.
-
-**What was accomplished (earlier session):**
-- Confirmed the build green (typecheck, 126 tests, production build) and the Pages
-  workflow deploying successfully.
-- Documented the lowercase live URL (`https://hokiegrad99.github.io/ledgerly/`; the
-  capital-L variant 404s) in README.md and DEPLOYMENT.md.
-- Wrote `scripts/verify-deployed.mjs` (acceptance subset + PWA online/offline, 28/28).
-- REQ-041/REQ-042 VERIFIED; then fixed ISSUE-003 (tag-name search, REQ-035) and the
-  Reports 375px overflow (REQ-006) and added a responsive phase (38/38 local).
-
-**What was accomplished (initial build):**
-- Complete local-first personal finance app: accounts, transactions (search/filter/
-  bulk/split/transfers/duplicate), categories/tags, rules, CSV + QFX/OFX imports with
-  duplicate detection, budgets (category + flex), goals, recurring (auto-detect + calendar),
-  net worth, investments, liabilities/payoff planning, reports (9 report kinds + saved reports
-  + CSV export), backup/restore, settings, sample data, PWA, GitHub Pages workflow.
-- All financial math uses integer cents (no float accounting).
-- 119 vitest tests across money, dates, calculations, CSV/OFX import, duplicates, rules,
-  backup round-trip, and the IndexedDB repository.
+**What was accomplished (prior sessions, 2026-09-10):**
+- Monarch-style cash-flow report (REQ-033 enhancement) with SVG Sankey; probe 9/9.
+- Harness Phases 10–11 (import history REQ-023, holdings sync REQ-031) — 105/105 live.
+- Requirements audit fixing six dead/incomplete features (ISSUE-006..011).
+- CSV/restore/QFX-OFX import wizards automated (Phases 5–7); rule-on-import (Phase 8);
+  split + transfer editing (Phase 9) — completing the §48 checklist automation.
+- GitHub Pages deployment + PWA offline verification (REQ-041/REQ-042).
+- Budget rollover carry-forward (REQ-026); tag search (REQ-035); responsive pass
+  (REQ-006); undo for deletes (ISSUE-005).
+- Initial full build: complete local-first personal finance app (accounts, transactions,
+  categories/tags, rules, imports, budgets, goals, recurring, net worth, investments,
+  liabilities, reports, backup/restore, settings, sample data, PWA, Pages workflow) with
+  integer-cents math throughout.
 
 **What remains unfinished:**
-- §48 interactive acceptance — fully automated and verified live (90/90 checks,
-  Phases 1–9).
-- Server mode (Phase 7): intentionally NOT_STARTED; abstraction is in place.
-- REQ-023 import-session history UI and REQ-031 holdings auto-derivation
-  (Medium backlog).
+- REQ-009 100k-transaction load validation (code splitting done; status IMPLEMENTED).
+- REQ-007 accessibility audit, REQ-049 doc-consistency pass, REQ-050 tracking review.
+- Server mode (REQ-043..047): intentionally NOT_STARTED; abstraction is in place.
+- Low backlog: dashboard widget resize; category transaction counts in Settings.
 
 **Current implementation state:**
 - `npm run typecheck` — PASS
-- `npm test` — PASS (147 tests)
-- `npm run build` — PASS (dist/ with PWA service worker)
+- `npm test` — PASS (164 tests)
+- `npm run build` — PASS (dist/ with PWA service worker; code-split chunks)
 - `npm run project:status` — reports requirements/tests/build/known-issues.
 
-**Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..011 all fixed/closed).
+**Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..012 all fixed/closed).
 
-**Next recommended task:** The Phase 10–11 harness work is pushed (`6bafc8a`)
-and verified live at 105/105. Continue the Low backlog: REQ-044
-(ServerRepository doc + stub) and REQ-047 (FinancialDataProvider docs).
+**Next recommended task:** REQ-009's 100k-transaction validation (the last big
+IMPLEMENTED → VERIFIED gap), then the Medium backlog: REQ-044 (ServerRepository
+doc + stub) and REQ-047 (FinancialDataProvider docs).
 
-**Files changed (last session):** everything under `src/`, `scripts/`, `.github/`, root docs (see CHANGELOG.md).
-**Files changed (this session):** `bbc205b` (search-wiring fix + harness search
-checks + audit docs); Phase 8 (rule application on import) in
-`scripts/verify-deployed.mjs`; BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md.
+**Files changed (this session):** `src/components/reports/FlowChart.tsx`,
+`src/components/reports/CashFlowMapView.tsx`, `scripts/probe-cashflow-map.mjs`,
+KNOWN_ISSUES.md, README.md, DEPLOYMENT.md, REQUIREMENTS.md, BUILD_STATUS.md,
+CHANGELOG.md, NEXT_TASKS.md.
 
-**Tests run:** `npm test` (163 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (**105/105** on the local build, two
-consecutive runs, and **against the live deployment** after the `6bafc8a` push —
-Phases 10–11 cover REQ-023/REQ-031 end to end in production),
-`scripts/probe-cashflow-map.mjs` (**9/9**, twice — Monarch-style cash-flow
-report), plus a live delete/undo check (351 → 301 → 351) in a prior session.
+**Tests run:** `npm test` (164 passing), `npm run typecheck`, `npm run build`,
+`node scripts/verify-deployed.mjs` (**105/105** against the live deployment and
+**105/105** on the code-split local build), `scripts/probe-flex-budget.mjs`
+(**11/11**, twice — REQ-025 flex budget), `scripts/probe-cashflow-map.mjs`
+(**13/13**, twice — no-clip + zoom/pan on the Monarch-style cash-flow report).
 
-**Tests passing:** 163/163. **Tests failing:** 0. **Harness checks:** 105/105.
+**Tests passing:** 164/164. **Tests failing:** 0. **Harness checks:** 105/105.
 
 **Important decisions:** see DECISIONS.md (DEC-001..DEC-009).

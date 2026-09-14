@@ -87,7 +87,11 @@ been checked.
 - **Description:** Handle 100 accounts and 100,000+ transactions. Paginated, indexed queries; no full transaction set in React state.
 - **Dependencies:** REQ-002, REQ-003
 - **Acceptance criteria:** Transaction list paginates (50/page); queries use Dexie indexes; dashboards query ranges.
-- **Status:** IMPLEMENTED
+- **Status:** IMPLEMENTED (route-level code splitting added 2026-09-13: initial JS
+  bundle 992 kB → 317 kB minified / 103 kB gzip, charts isolated in an on-demand chunk,
+  sample data lazy-loaded. Remaining for VERIFIED: a 100k-transaction load validation) (route-level code splitting added 2026-09-13: initial JS bundle
+  992 kB → 317 kB minified, 103 kB gzip; charts isolated in an on-demand chunk; the sample-
+  data module is lazy-loaded. Remaining for VERIFIED: 100k-transaction load validation)
 
 ---
 
@@ -224,7 +228,12 @@ been checked.
 - **Description:** Single flexible spending total instead of per-category amounts; switchable mode.
 - **Dependencies:** REQ-024
 - **Acceptance criteria:** Mode switch works; flex totals computed correctly.
-- **Status:** IMPLEMENTED
+- **Status:** VERIFIED (mode switch both directions, flex-amount persistence across
+  reload, and the summary math — spent = all categorized non-transfer expense spending
+  in the month with account/system-tag exclusions honored; remaining = flex − spent —
+  verified end to end by `scripts/probe-flex-budget.mjs`, 11/11 checks twice,
+  2026-09-13. A stale "budgeted categories only" comment in `Budget.tsx` was corrected
+  to match the intended single-flexible-total semantics.)
 
 ### REQ-026 — Budget months, copy, rollover
 - **Priority:** P2
@@ -448,7 +457,7 @@ been checked.
 - **Priority:** P0
 - **Description:** Tests for money, dates, calculations (net worth, budget, cash flow, transfers, recurring, investments, payoff), CSV/OFX import, duplicate detection, rules, backup/restore, repository. Include edge cases: negative amounts, refunds, transfers, splits, duplicate imports, leap years, date formats.
 - **Dependencies:** all core modules
-- **Acceptance criteria:** `npm test` passes (119 tests).
+- **Acceptance criteria:** `npm test` passes (164 tests).
 - **Status:** VERIFIED
 
 ### REQ-049 — Documentation

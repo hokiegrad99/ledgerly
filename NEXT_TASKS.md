@@ -2,6 +2,22 @@
 
 Prioritized backlog. This list always represents the most useful next work.
 
+> ✅ **Done 2026-09-13:** Monarch cash-flow diagram right-edge clipping fixed
+> (ISSUE-012 — 280-unit label gutter in the SVG viewBox) and zoom (100–300%) +
+> scroll-pan controls added to the report. Probe extended 9 → 13 checks; 13/13 twice.
+> ✅ **Done 2026-09-13:** Route-level code splitting — initial bundle 992 kB → 317 kB
+> minified (276 → 103 kB gzip), recharts isolated in a lazy chunk, sample data loaded on
+> demand. First REQ-009 step. Live deployment re-verified at **105/105**; the code-split
+> local build also passes the full harness and the cash-flow probe (9/9).
+> ✅ **Done 2026-09-13:** REQ-025 flex budget verified end to end
+> (`scripts/probe-flex-budget.mjs`, 11/11 checks twice) and marked VERIFIED — 41 of 50
+> requirements verified (82%).
+
+## High
+
+1. **REQ-009** — Validate app behavior with a 100k-transaction dataset (import time,
+   pagination latency, dashboard/report responsiveness), then mark VERIFIED.
+
 > ✅ **Done 2026-09-10:** GitHub Pages deployment live and verified (REQ-041/REQ-042
 > VERIFIED, ISSUE-002 closed) via `scripts/verify-deployed.mjs` — onboarding, sample
 > data, all 12 routes, search, backup download, PWA offline reload/navigation: 28/28
@@ -61,10 +77,10 @@ is the Medium/Low backlog below)
 
 ## Medium
 
-1. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
-2. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
+2. **REQ-044** — Add a `ServerRepository` design doc and an optional stub implementation behind a build flag (no backend required to run).
+3. **REQ-047** — Document the `FinancialDataProvider` abstraction interface in ARCHITECTURE.md.
 
 ## Low
 
-3. Dashboard: widget resize support (currently reorder/remove/add only).
-4. Category transaction counts in the Settings categories UI (currently a stub).
+4. Dashboard: widget resize support (currently reorder/remove/add only).
+5. Category transaction counts in the Settings categories UI (currently a stub).
