@@ -9,8 +9,12 @@
  * node heights are proportional to value, and links are smooth cubic ribbons
  * whose thickness equals the flow's share of the total. Percentages render
  * relative to a base node (total income), matching Monarch's convention.
+ *
+ * The viewBox reserves a right-hand gutter so the last column's labels render
+ * fully inside the canvas (ISSUE-012), and the wrapper supports zoom (100–300%)
+ * with scroll panning for dense months.
  */
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { formatMoney } from '../../lib/money';
 
 export interface FlowNode {
@@ -39,12 +43,19 @@ interface Positioned extends FlowNode {
 const NODE_W = 14;
 const MIN_NODE_H = 12;
 const PAD_Y = 8;
+/** Gutter on the right edge of the viewBox reserved for last-column labels. */
+const LABEL_W = 280;
+/** Diagram width in viewBox units; node columns are laid out inside it. */
+const DIAGRAM_W = 1040 - LABEL_W;
+const MAX_ZOOM = 3;
 
 export function FlowChart({
   columns,
   links,
   height = 520,
   percentBaseId,
+  zoom = 1,
+  resetSignal = 0,
 }: {
   /** Nodes grouped into columns, left → right. Order within a column is preserved. */
   columns: FlowNode[][];
@@ -52,15 +63,29 @@ export function FlowChart({
   height?: number;
   /** Percentages are computed relative to this node's value (defaults to the first node). */
   percentBaseId?: string;
+  /** Canvas zoom factor: 1 = fit width, up to MAX_ZOOM = scrollable enlargement. */
+  zoom?: number;
+  /** Bump to snap the pan scroll position back to the origin (e.g. month change). */
+  resetSignal?: number;
 }) {
   const clipId = useId().replace(/[:]/g, '');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Defensive clamp: the toolbar already limits the range, but keep the canvas
+  // sane regardless of what the caller passes.
+  const z = Math.min(MAX_ZOOM, Math.max(1, zoom));
+
+  // Zooming or an external reset (month navigation) snaps back to the origin so
+  // the user always starts reading from the income side.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ left: 0, top: 0 });
+  }, [z, resetSignal]);
   const colCount = columns.length;
   if (colCount === 0 || links.length === 0) return null;
 
   // ---- horizontal geometry -------------------------------------------------
-  const width = 1040;
-  const usableW = width - NODE_W;
-  const step = colCount > 1 ? (usableW - NODE_W) / (colCount - 1) : 0;
+  // Node columns span DIAGRAM_W; LABEL_W stays clear on the right so the last
+  // column's outside-right labels are never clipped by the viewBox edge.
+  const step = colCount > 1 ? (DIAGRAM_W - NODE_W) / (colCount - 1) : 0;
 
   // ---- vertical scale ------------------------------------------------------
   const maxColTotal = Math.max(
@@ -139,9 +164,14 @@ export function FlowChart({
   const colTotal = (ci: number) => columns[ci].reduce((a, n) => a + n.value, 0);
 
   return (
-    <div className="overflow-x-auto">
+    <div ref={scrollRef} className="overflow-auto rounded-lg">
+      {/* zoom 1 = fit the container width; larger zooms enlarge the canvas
+          proportionally (percentage width overflows the scroll container
+          without stretching it, unlike a fixed px width) and can be panned
+          in both axes */}
+      <div style={{ width: z > 1 ? `${Math.round(z * 100)}%` : '100%' }}>
       <svg
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 1040 ${height}`}
         className="h-auto w-full min-w-[720px]"
         role="img"
         aria-label="Cash flow diagram"
@@ -228,6 +258,7 @@ export function FlowChart({
           );
         })}
       </svg>
+      </div>
     </div>
   );
 }

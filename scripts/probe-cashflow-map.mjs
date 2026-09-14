@@ -94,6 +94,50 @@ try {
   check('Sankey SVG rendered', !!svg && svg.rects >= 5 && svg.paths >= 5, svg ? `${svg.rects} nodes, ${svg.paths} ribbons, ${svg.texts} labels` : 'missing');
   const labels = await page.eval(`(() => { const s = document.querySelector('svg[aria-label=\"Cash flow diagram\"]'); return s ? s.textContent : ''; })()`);
   check('Income node labeled', /Income/.test(labels));
+
+  // ISSUE-012: the far-right labels must render fully inside the viewBox.
+  const clip = await page.eval(`(() => {
+    const s = document.querySelector('svg[aria-label=\"Cash flow diagram\"]');
+    if (!s) return null;
+    const vbW = s.viewBox.baseVal.width;
+    let maxEnd = 0;
+    for (const t of s.querySelectorAll('text')) {
+      const b = t.getBBox();
+      maxEnd = Math.max(maxEnd, b.x + b.width);
+    }
+    return { vbW, maxEnd };
+  })()`);
+  check('Rightmost label inside viewBox (no clipping)', !!clip && clip.maxEnd <= clip.vbW,
+    clip ? `max text end ${clip.maxEnd.toFixed(0)} vs viewBox ${clip.vbW}` : 'missing');
+
+  // Zoom controls: zoom in must widen the canvas beyond its container
+  // (scrollable), and reset must return it to fit-width with scroll re-anchored.
+  const geomBefore = await page.eval(`(() => {
+    const wrap = document.querySelector('svg[aria-label=\"Cash flow diagram\"]')?.closest('.overflow-auto');
+    return wrap ? { sw: wrap.scrollWidth, cw: wrap.clientWidth } : null;
+  })()`);
+  const zoomIn1 = await page.eval(`(() => { const b = document.querySelector('button[aria-label=\"Zoom in\"]'); if (!b) return 'no-btn'; b.click(); return 'clicked'; })()`);
+  await SLEEP(300);
+  const zoomIn2 = await page.eval(`(() => { const b = document.querySelector('button[aria-label=\"Zoom in\"]'); if (!b) return 'no-btn'; b.click(); return 'clicked'; })()`);
+  await SLEEP(500);
+  const geomZoomed = await page.eval(`(() => {
+    const wrap = document.querySelector('svg[aria-label=\"Cash flow diagram\"]')?.closest('.overflow-auto');
+    const zoomLabel = [...document.querySelectorAll('span')].find((s) => /^Zoom \d+%$/.test(s.textContent.trim()));
+    return wrap ? { sw: wrap.scrollWidth, cw: wrap.clientWidth, zoom: zoomLabel?.textContent.trim() ?? '' } : null;
+  })()`);
+  check('Zoom controls present', zoomIn1 === 'clicked' && zoomIn2 === 'clicked');
+  check('Zoom in makes canvas scrollable',
+    !!geomBefore && !!geomZoomed && geomZoomed.sw > geomBefore.sw && geomZoomed.sw > geomZoomed.cw,
+    geomZoomed ? `scrollWidth ${geomZoomed.sw} vs container ${geomZoomed.cw} (${geomZoomed.zoom})` : 'missing');
+  await page.eval(`(() => { document.querySelector('button[aria-label=\"Reset zoom\"]')?.click(); })()`);
+  await SLEEP(400);
+  const geomReset = await page.eval(`(() => {
+    const wrap = document.querySelector('svg[aria-label=\"Cash flow diagram\"]')?.closest('.overflow-auto');
+    return wrap ? { sl: wrap.scrollLeft, sw: wrap.scrollWidth, cw: wrap.clientWidth } : null;
+  })()`);
+  check('Zoom reset returns to fit-width, scroll re-anchored',
+    !!geomReset && geomReset.sl === 0 && geomReset.sw <= geomReset.cw + 1,
+    geomReset ? `scrollLeft ${geomReset.sl}, scrollWidth ${geomReset.sw} vs container ${geomReset.cw}` : 'missing');
   // Sample-data months are net-negative by design (spending > 2 paychecks), so
   // the Savings flow is exercised by seeding one fat income transaction into
   // the current month through IndexedDB (throwaway profile — nothing persists).

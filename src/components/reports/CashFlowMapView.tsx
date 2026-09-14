@@ -8,12 +8,15 @@
  *     with net income drawn as a "Savings" flow out of Income
  *   • percentages relative to total income; values in dollars and cents
  *
+ * The Sankey canvas can be zoomed (100–300%) and panned by scroll for dense
+ * months; zoom resets when the month changes (ISSUE-012).
+ *
  * Month navigation is local to this view: it intentionally ignores the global
  * date-range filter (Monarch's "This month" behavior) but keeps the account,
  * category, tag, and type filters.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { Card, CardBody, Button } from '../ui/basic';
 import { formatMoney } from '../../lib/money';
@@ -69,6 +72,10 @@ function aggregate(
 export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
   const { repo, groups, categories, categoryById, dataVersion } = useApp();
   const [month, setMonth] = useState(currentMonthKey());
+  // Sankey canvas zoom (1 = fit width). Bumping `zoomReset` re-anchors the
+  // scroll position (used on month navigation and by the reset control).
+  const [zoom, setZoom] = useState(1);
+  const [zoomReset, setZoomReset] = useState(0);
   const [monthTxns, setMonthTxns] = useState<Transaction[]>([]);
   const [monthSplits, setMonthSplits] = useState<TransactionSplit[]>([]);
 
@@ -264,7 +271,11 @@ export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
               <button
                 className="px-2 py-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
                 aria-label="Previous month"
-                onClick={() => setMonth((m) => addMonthsToKey(m, -1))}
+                onClick={() => {
+                  setMonth((m) => addMonthsToKey(m, -1));
+                  setZoom(1);
+                  setZoomReset((n) => n + 1);
+                }}
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -272,7 +283,11 @@ export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
               <button
                 className="px-2 py-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
                 aria-label="Next month"
-                onClick={() => setMonth((m) => addMonthsToKey(m, 1))}
+                onClick={() => {
+                  setMonth((m) => addMonthsToKey(m, 1));
+                  setZoom(1);
+                  setZoomReset((n) => n + 1);
+                }}
                 disabled={month >= currentMonthKey()}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -288,15 +303,48 @@ export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
             </Button>
           </div>
         </div>
+        <div className="flex items-center justify-end gap-2 border-b border-slate-100 px-4 py-2 dark:border-slate-800">
+          <span className="text-xs text-slate-400" aria-live="polite">Zoom {Math.round(zoom * 100)}%</span>
+          <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700">
+            <button
+              className="px-2 py-1.5 text-slate-500 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-slate-100"
+              aria-label="Zoom out"
+              onClick={() => setZoom((z) => Math.max(1, Math.round((z - 0.25) * 100) / 100))}
+              disabled={zoom <= 1}
+            >
+              <ZoomOut className="h-4 w-4" />
+            </button>
+            <button
+              className="px-2 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+              aria-label="Reset zoom"
+              onClick={() => {
+                setZoom(1);
+                setZoomReset((n) => n + 1);
+              }}
+            >
+              Reset
+            </button>
+            <button
+              className="px-2 py-1.5 text-slate-500 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:text-slate-100"
+              aria-label="Zoom in"
+              onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))}
+              disabled={zoom >= 3}
+            >
+              <ZoomIn className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
         <CardBody>
           <FlowChart
             columns={nodes}
             links={links}
             height={480}
             percentBaseId="income"
+            zoom={zoom}
+            resetSignal={zoomReset}
           />
           <p className="mt-2 text-xs text-slate-400">
-            Transfers and excluded accounts are not shown. Percentages are relative to total income. Savings = income − expenses for {formatMonth(month)}. Month navigation is independent of the date-range filter; account, category, and tag filters still apply.
+            Transfers and excluded accounts are not shown. Percentages are relative to total income. Savings = income − expenses for {formatMonth(month)}. Zoom in to enlarge the diagram and scroll to pan. Month navigation is independent of the date-range filter; account, category, and tag filters still apply.
           </p>
         </CardBody>
       </Card>
