@@ -164,7 +164,7 @@ export default function TransactionsPage() {
     const acc = accountById(d.accountId);
     const isLiability = acc ? isLiabilityType(acc.type) : false;
     // For liability accounts, positive amounts are expenses (payments toward the card).
-    let amount = d.amount;
+    let amount = d.amount ?? 0;
     let type = d.type;
     if (isLiability && d.type === 'expense' && amount > 0) amount = -amount;
     if (!isLiability && d.type === 'expense' && amount > 0) amount = -amount;

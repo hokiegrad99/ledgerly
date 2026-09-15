@@ -3,7 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/basic';
-import { Select, Input } from '../ui/form';
+import { Select, AmountInput } from '../ui/form';
 import type { Category, Transaction, TransactionSplit } from '../../domain/types';
 import { newId, nowISO } from '../../lib/id';
 
@@ -152,16 +152,11 @@ export function SplitModal({
                   </optgroup>
                 ))}
               </Select>
-              <Input
-                type="number"
-                step="0.01"
-                value={(Math.abs(s.amount) / 100).toFixed(2)}
-                onChange={(e) => {
-                  const v = Math.round(Number(e.target.value) * 100);
-                  updateLine(s.id, { amount: Number.isFinite(v) ? v : 0 });
-                }}
+              <AmountInput
+                value={Math.abs(s.amount)}
+                onChange={(v) => updateLine(s.id, { amount: v ?? 0 })}
                 className="text-right"
-                aria-label="Split amount"
+                ariaLabel="Split amount"
               />
               <button className="btn-ghost p-1.5 text-red-500" onClick={() => removeLine(s.id)} aria-label="Remove split line">
                 <Trash2 className="h-4 w-4" />

@@ -1,5 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
+import { parseMoney } from '../../lib/money';
 
 export function Field({ label, hint, children, className }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
@@ -66,28 +67,64 @@ export function Toggle({
   );
 }
 
-/** Amount input: parses and displays money; calls onChange with integer cents. */
+/**
+ * Amount input: parses and displays money; calls onChange with integer cents.
+ *
+ * The text in the field is the single source of truth while the user is
+ * typing — it is never re-formatted mid-edit. (Reformatting on every
+ * keystroke used to corrupt input: typing "12.5" became "1.00" interleaved
+ * with typed digits, backspace resurrected the stripped digits, the caret
+ * jumped to the end, and a cleared field silently replanted "0.00" on blur.)
+ * Text is canonicalized to two decimals only on blur, and external `value`
+ * changes are applied only when they are not echoes of our own onChange.
+ */
 export function AmountInput({
   value,
   onChange,
   placeholder,
   className,
   negative,
+  ariaLabel,
 }: {
   value: number | null;
   onChange: (cents: number | null) => void;
   placeholder?: string;
   className?: string;
   negative?: boolean;
+  ariaLabel?: string;
 }) {
-  const [text, setText] = React.useState<string>(value === null ? '' : (value / 100).toFixed(2));
+  const format = (cents: number | null): string => (cents === null ? '' : (cents / 100).toFixed(2));
+  const [text, setText] = React.useState<string>(() => format(value));
+  // The last cents value we emitted (initially the incoming prop). Used to
+  // tell our own echo (`value` changing because onChange updated the parent,
+  // including the common `value={x ?? 0}` coercion of an emitted null) apart
+  // from a genuine external change (modal reset, different record), and to
+  // revert garbage input to the last committed amount on blur.
+  const lastEmitted = React.useRef<number | null>(value);
 
-  // Sync external value changes.
+  // Apply external value changes only.
   React.useEffect(() => {
-    const expected = value === null ? '' : (value / 100).toFixed(2);
-    setText((prev) => (prev.trim() === '' && expected === '' ? prev : expected));
+    const emitted = lastEmitted.current;
+    if (value === emitted || (emitted === null && value === 0)) return;
+    lastEmitted.current = value;
+    setText(format(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+
+  const toCents = (parsed: number): number => (negative && parsed > 0 ? -parsed : parsed);
+
+  const commit = (raw: string): void => {
+    if (raw.trim() === '') {
+      lastEmitted.current = null;
+      onChange(null);
+      return;
+    }
+    const parsed = parseMoney(raw);
+    if (parsed === null) return; // partial input ("-", "1.2.3"): keep last committed value
+    const cents = toCents(parsed);
+    lastEmitted.current = cents;
+    onChange(cents);
+  };
 
   return (
     <input
@@ -95,23 +132,27 @@ export function AmountInput({
       inputMode="decimal"
       className={clsx('input text-right', className)}
       placeholder={placeholder ?? '0.00'}
+      aria-label={ariaLabel}
       value={text}
       onChange={(e) => {
         const raw = e.target.value;
         setText(raw);
-        const clean = raw.replace(/[^0-9.\-]/g, '');
-        const num = Number(clean);
-        if (raw.trim() === '') {
-          onChange(null);
-        } else if (Number.isFinite(num)) {
-          let cents = Math.round(num * 100);
-          if (negative && cents > 0) cents = -cents;
-          onChange(cents);
-        }
+        commit(raw);
       }}
       onBlur={() => {
-        const num = Number(text.replace(/[^0-9.\-]/g, ''));
-        if (Number.isFinite(num)) setText(num.toFixed(2));
+        const parsed = parseMoney(text);
+        if (parsed === null) {
+          // Empty or unparseable: revert to the last committed amount.
+          // (Empty stays empty — never plant a silent "0.00".)
+          setText(format(lastEmitted.current));
+          return;
+        }
+        const cents = toCents(parsed);
+        setText(format(cents));
+        if (cents !== lastEmitted.current) {
+          lastEmitted.current = cents;
+          onChange(cents);
+        }
       }}
     />
   );

@@ -12,7 +12,8 @@ export interface TransactionDraft {
   id: string;
   date: string;
   merchant: string;
-  amount: number;
+  /** Integer cents, or null while the field is empty (new transactions start empty). */
+  amount: number | null;
   accountId: string;
   categoryId: string | null;
   tagIds: string[];
@@ -30,7 +31,7 @@ export function emptyDraft(accountId: string, date?: string): TransactionDraft {
     id: newId(),
     date: date ?? todayISO(),
     merchant: '',
-    amount: 0,
+    amount: null,
     accountId,
     categoryId: null,
     tagIds: [],
@@ -113,7 +114,7 @@ export function TransactionFormModal({
       setError('Date is required.');
       return;
     }
-    if (d.amount === 0 && d.type !== 'transfer') {
+    if ((d.amount ?? 0) === 0 && d.type !== 'transfer') {
       setError('Amount cannot be zero.');
       return;
     }
@@ -146,7 +147,7 @@ export function TransactionFormModal({
           <Input type="date" value={d.date} onChange={(e) => setD({ ...d, date: e.target.value })} />
         </Field>
         <Field label="Amount">
-          <AmountInput value={d.amount} onChange={(cents) => setD({ ...d, amount: cents ?? 0, type: cents !== null && cents < 0 ? 'expense' : cents !== null && cents > 0 ? 'income' : d.type })} />
+          <AmountInput value={d.amount} onChange={(cents) => setD({ ...d, amount: cents, type: cents !== null && cents < 0 ? 'expense' : cents !== null && cents > 0 ? 'income' : d.type })} />
         </Field>
         <Field label="Merchant / payee" className="sm:col-span-2">
           <Input value={d.merchant} onChange={(e) => setD({ ...d, merchant: e.target.value })} placeholder="e.g. Whole Foods Market" autoFocus />
@@ -157,7 +158,7 @@ export function TransactionFormModal({
             disabled={lockAccount}
             onChange={(e) => {
               const acc = accounts.find((a) => a.id === e.target.value);
-              setD({ ...d, accountId: e.target.value, type: acc && isLiabilityType(acc.type) && d.amount > 0 ? 'expense' : d.type });
+              setD({ ...d, accountId: e.target.value, type: acc && isLiabilityType(acc.type) && (d.amount ?? 0) > 0 ? 'expense' : d.type });
             }}
           >
             {activeAccounts.map((a) => (

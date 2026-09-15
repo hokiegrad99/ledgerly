@@ -1,6 +1,9 @@
 import 'fake-indexeddb/auto';
 import { afterEach, vi } from 'vitest';
 
+// React 18 act() environment for component tests.
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+
 // jsdom does not implement matchMedia.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
