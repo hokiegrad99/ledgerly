@@ -35,16 +35,23 @@ function renderInput(onChange: (cents: number | null) => void, value: number | n
   return { ...h, rerenderValue: (v: number | null) => h.rerender(<AmountInput value={v} onChange={onChange} negative={negative} />) };
 }
 
+// React's value tracker dedupes synthetic events when the value is assigned
+// through the instance property — set it via the prototype setter instead
+// (same technique as the repo's browser probes).
+const nativeInputValueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+
 async function typeInto(input: HTMLInputElement, text: string) {
   await act(async () => {
-    input.value = text;
+    nativeInputValueSetter.call(input, text);
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
 
 function blur(input: HTMLInputElement) {
   act(() => {
+    // React maps onBlur to the native, bubbling focusout event.
     input.dispatchEvent(new FocusEvent('blur'));
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
   });
 }
 

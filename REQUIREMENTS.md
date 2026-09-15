@@ -120,7 +120,9 @@ been checked.
 - **Description:** Create, edit, duplicate, delete transactions. Fields: date, merchant, amount, account, category, tags, notes, type, cleared/pending/reviewed, transfer/recurring relationships, original vs edited description.
 - **Dependencies:** REQ-001, REQ-002, REQ-010
 - **Acceptance criteria:** Full CRUD; edits preserve original description.
-- **Status:** VERIFIED
+- **Status:** VERIFIED (amount entry UX fixed 2026-09-15 — ISSUE-013: the amount
+  field no longer reformats while typing, empty is allowed, split amounts use
+  the same input)
 
 ### REQ-013 — Transaction search and filtering
 - **Priority:** P0
@@ -319,13 +321,14 @@ been checked.
 - **Acceptance criteria:** Each report renders real data; filters apply; transfers excluded.
 - **Status:** VERIFIED
 
-### REQ-034 — Saved reports and CSV export
+### REQ-034 — Saved reports, CSV and PDF export
 - **Priority:** P2
-- **Description:** Save, rename, duplicate, delete report definitions; export report data to CSV.
+- **Description:** Save, rename, duplicate, delete report definitions; export report data to CSV; export a report as a PDF document (including the Monarch-style cash-flow diagram as a rendered image).
 - **Dependencies:** REQ-033
-- **Acceptance criteria:** Saved reports restore kind + filters; CSV downloads contain the visible data.
+- **Acceptance criteria:** Saved reports restore kind + filters; CSV downloads contain the visible data; PDF export produces an A4 document with title, filters, summary and the data table for every report kind, and embeds the cash-flow diagram for the Monarch-style report.
 - **Status:** VERIFIED (save/duplicate/delete existed; **rename** added 2026-09-10 during the
-  requirements audit — ISSUE-010 fixed)
+  requirements audit — ISSUE-010 fixed; **PDF export** added 2026-09-15 via lazy-loaded
+  jsPDF, `src/lib/reportPdf.ts` + Reports toolbar, covered by 19 unit tests)
 
 ---
 
@@ -457,7 +460,7 @@ been checked.
 - **Priority:** P0
 - **Description:** Tests for money, dates, calculations (net worth, budget, cash flow, transfers, recurring, investments, payoff), CSV/OFX import, duplicate detection, rules, backup/restore, repository. Include edge cases: negative amounts, refunds, transfers, splits, duplicate imports, leap years, date formats.
 - **Dependencies:** all core modules
-- **Acceptance criteria:** `npm test` passes (164 tests).
+- **Acceptance criteria:** `npm test` passes (191 tests).
 - **Status:** VERIFIED
 
 ### REQ-049 — Documentation

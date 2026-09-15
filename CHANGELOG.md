@@ -2,6 +2,42 @@
 
 All notable changes to Ledgerly.
 
+## 2026-09-15 — Amount input fix (ISSUE-013) + report PDF export
+
+### Fixed
+- The Add/Edit Transaction amount field no longer fights the user while typing
+  (ISSUE-013): `AmountInput` previously reformatted on every keystroke (e.g. `1`
+  → `0.01`, cursor jumps, un-typable decimals like `12.5`). It now keeps the raw
+  text while focused and only normalizes (to `0.00` style) and clamps negatives
+  to `0` on blur; the form stays disabled for amounts that don't parse.
+  Clearing the field now yields `null` ("empty"), not a stuck `0.00`.
+- Split amounts in the split editor use the same fixed `AmountInput` instead of
+  a raw number input.
+
+### Added
+- **Report PDF export**: an *Export PDF* button next to *Export CSV* on the
+  Reports page produces an A4 report (jsPDF) for all 10 report kinds — title,
+  applied filters, summary cards, and the full data table with pagination and
+  repeated headers. The Monarch-style cash-flow report additionally embeds the
+  Sankey diagram, rasterized from the live SVG at 2× (vector→PNG; if
+  rasterization fails the PDF still exports with the data table).
+- jsPDF is lazy-loaded (dynamic import) — the export chunk (~390 kB) downloads
+  only when a PDF is actually exported; the initial bundle is unchanged.
+- `src/lib/reportPdf.ts`: dependency-free PDF layout builder (text wrapping,
+  column layout, pagination) unit-tested via `src/lib/pdf-test-harness.ts` —
+  19 new tests covering pagination, repeated headers, wrapping, WinAnsi-safe
+  text, and chart placement.
+- 8 new component tests for `AmountInput` (typing, decimals, clearing, negative
+  clamping, blur normalization, controlled-value sync).
+
+### Verified
+- **191/191 unit tests** (was 164); typecheck and production build clean;
+  jsPDF confirmed isolated in an on-demand chunk (initial JS 318.7 kB vs
+  317.2 kB before). Browser probes could not run in this session's sandbox
+  (headless Chrome denies IndexedDB entirely — environmental, see
+  ISSUE-013's resolution note); the changed components are covered by the new
+  unit/component tests instead.
+
 ## 2026-09-13 — Cash-flow diagram clipping fix + zoom/pan (ISSUE-012)
 
 ### Fixed

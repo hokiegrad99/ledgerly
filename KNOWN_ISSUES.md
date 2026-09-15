@@ -193,3 +193,28 @@ Never silently ignore known problems — log them here.
   the zoom toolbar. Probe extended 9 → 13 checks (getBBox no-clip assertion,
   zoom scrollability, reset/fit-width/scroll-anchor); **13/13 twice**, 164 unit
   tests, typecheck and production build clean.
+
+## ISSUE-013
+- **Title:** Add Transaction amount field auto-formats while typing, blocking valid input
+- **Severity:** High
+- **Status:** FIXED
+- **Affected requirement:** REQ-012
+- **Steps to reproduce:** Transactions → *Add transaction* → Amount: type `12.5`
+  — every keystroke was reformatted (`1` → `0.01`), so decimals were impossible
+  to enter and the cursor jumped; clearing the field left a sticky `0.00` that
+  could not be removed.
+- **Expected:** The user types freely; the value is normalized only when they
+  leave the field; an empty field is allowed.
+- **Actual:** `AmountInput` reformatted the text on every `onChange` by writing
+  the formatted value back through the controlled `value` prop.
+- **Resolution:** `AmountInput` (`src/components/ui/form.tsx`) now keeps raw
+  text while focused and normalizes on blur only (2-dp format, negatives
+  clamped to `0`). `TransactionDraft.amount` became `number | null` so an empty
+  field is representable; the save path treats empty as invalid and the form's
+  action buttons stay disabled until the amount parses. `SplitModal`'s raw
+  number input was replaced with the fixed component for consistent behavior.
+  Covered by 8 new component tests (`src/components/ui/form.test.tsx`).
+  Note: the repo's browser probes could not re-run in the 2026-09-15 session
+  sandbox — headless Chrome there denies the IndexedDB API entirely
+  (pre-existing environment restriction, unrelated to these changes); the
+  affected flows are covered by the new component tests instead.

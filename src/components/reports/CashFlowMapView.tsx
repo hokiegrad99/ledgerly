@@ -15,12 +15,13 @@
  * date-range filter (Monarch's "This month" behavior) but keeps the account,
  * category, tag, and type filters.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from 'lucide-react';
 import { useApp } from '../../store/AppContext';
 import { Card, CardBody, Button } from '../ui/basic';
 import { formatMoney } from '../../lib/money';
-import { currentMonthKey, addMonthsToKey, monthStart, monthEnd, formatMonth } from '../../lib/dates';
+import { exportReportPdf, formatMoneyPlain } from '../../lib/reportPdf';
+import { currentMonthKey, addMonthsToKey, monthStart, monthEnd, formatMonth, todayISO } from '../../lib/dates';
 import { FlowChart, type FlowLink, type FlowNode } from './FlowChart';
 import type { ReportFilters, Transaction, TransactionSplit } from '../../domain/types';
 import { toCsv, downloadText } from './csv';
@@ -69,8 +70,14 @@ function aggregate(
     .sort((a, b) => b.value - a.value);
 }
 
-export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
+/** Imperative handle so the Reports toolbar can export this view as PDF. */
+export interface CashFlowMapHandle {
+  exportPdf: () => Promise<{ ok: boolean; error?: string }>;
+}
+
+export const CashFlowMapView = forwardRef<CashFlowMapHandle, { filters: ReportFilters }>(function CashFlowMapView({ filters }, ref) {
   const { repo, groups, categories, categoryById, dataVersion } = useApp();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [month, setMonth] = useState(currentMonthKey());
   // Sankey canvas zoom (1 = fit width). Bumping `zoomReset` re-anchors the
   // scroll position (used on month navigation and by the reset control).
@@ -225,6 +232,39 @@ export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
     }
   }
 
+  // PDF export: the whole view (summary tiles + Sankey diagram + data table).
+  // The diagram is rasterized from the live SVG inside rootRef; if that fails
+  // the table is still exported.
+  useImperativeHandle(ref, () => ({
+    exportPdf: async () => {
+      const pctOfIncome = (v: number) => (totalIncome > 0 ? `${((v / totalIncome) * 100).toFixed(2)}%` : '');
+      return exportReportPdf({
+        title: 'Cash flow (Monarch-style)',
+        subtitle: formatMonth(month),
+        meta: `Period ${monthStart(month).slice(0, 10)} – ${monthEnd(month).slice(0, 10)} · Generated ${todayISO()} · Ledgerly`,
+        summary: [
+          { label: 'Total income', value: formatMoneyPlain(totalIncome), color: '#10b981' },
+          { label: 'Total expenses', value: formatMoneyPlain(totalExpenses), color: '#ef4444' },
+          { label: 'Total net income', value: formatMoneyPlain(net), color: net >= 0 ? '#10b981' : '#ef4444' },
+          { label: 'Savings rate', value: `${savingsRate.toFixed(1)}%` },
+        ],
+        table: {
+          headers: ['Type', 'Name', 'Amount', '% of income'],
+          rows: [
+            ...incomeRows.map((r) => [{ text: 'Income' }, { text: r.name }, { text: formatMoneyPlain(r.value) }, { text: pctOfIncome(r.value) }]),
+            ...expenseByCat.map((r) => [{ text: 'Expense' }, { text: r.name }, { text: formatMoneyPlain(r.value) }, { text: pctOfIncome(r.value) }]),
+          ],
+          note: 'Transfers and excluded accounts are not shown. Percentages are relative to total income.',
+        },
+        chartContainer: rootRef.current,
+        chartTitle: 'Cash flow diagram',
+        chartNote: 'Sources → Income → category groups → categories. Savings = income − expenses for the month.',
+        chartFirst: true,
+        filename: `cash-flow-${month}.pdf`,
+      });
+    },
+  }));
+
   const csvRows = [
     ['Month', formatMonth(month)],
     ['Total income', (totalIncome / 100).toFixed(2)],
@@ -240,7 +280,7 @@ export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
   ];
 
   return (
-    <div className="space-y-4">
+    <div ref={rootRef} className="space-y-4">
       {/* summary tiles */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
@@ -350,4 +390,4 @@ export function CashFlowMapView({ filters }: { filters: ReportFilters }) {
       </Card>
     </div>
   );
-}
+});

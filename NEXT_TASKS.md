@@ -2,6 +2,12 @@
 
 Prioritized backlog. This list always represents the most useful next work.
 
+> ✅ **Done 2026-09-15:** Amount field fixed (ISSUE-013 — no reformatting while
+> typing, empty allowed, blur normalization; split amounts use the same input)
+> and report PDF export added (REQ-034): A4 PDF for all 10 report kinds with
+> filters, summary and data table; the Monarch-style cash-flow report embeds
+> its Sankey diagram as a 2× image. jsPDF lazy-loaded (initial bundle
+> unchanged); 191 unit tests, typecheck + build clean.
 > ✅ **Done 2026-09-13:** Monarch cash-flow diagram right-edge clipping fixed
 > (ISSUE-012 — 280-unit label gutter in the SVG viewBox) and zoom (100–300%) +
 > scroll-pan controls added to the report. Probe extended 9 → 13 checks; 13/13 twice.

@@ -23,6 +23,9 @@ subscriptions, no data transmitted anywhere.
   No `0.1 + 0.2` bugs.
 - **Powerful imports**: CSV/TSV wizard with column mapping (remembered per bank)
   and QFX/OFX parsing with FITID-based duplicate detection.
+- **Report exports**: every report exports to CSV, and to a formatted A4 PDF
+  (title, filters, summary and data table) — the Monarch-style cash-flow
+  diagram is embedded in its PDF as a rendered image.
 - **Backup & restore**: one-click versioned JSON backup that captures everything;
   restore with replace or merge.
 - **PWA**: installable and offline-capable.
@@ -162,7 +165,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md), [DATA_MODEL.md](./DATA_MODEL.md), and
 ## Testing
 
 ```bash
-npm test            # 164 tests
+npm test            # 191 tests
 npm run typecheck
 npm run project:status   # health report (requirements, tests, build, issues)
 ```

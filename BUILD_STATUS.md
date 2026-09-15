@@ -31,12 +31,33 @@ substantially complete; Phase 7 — server mode — is deferred by design).
 
 **Current Task:** The §48 acceptance checklist is fully automated **and verified
 against the live deployment (105/105, re-confirmed 2026-09-13)**. Latest work:
-Monarch cash-flow diagram clipping fix + zoom/pan controls (ISSUE-012),
-route-level code splitting (REQ-009 step), and REQ-025 flex budget verified end
-to end. Remaining backlog: the Medium/Low items in NEXT_TASKS.md (server-mode
-docs, dashboard niceties) and the 100k-transaction validation for REQ-009.
+the Add/Edit transaction amount-field fix (ISSUE-013) and report PDF export
+(REQ-034 enhancement — A4 PDF for all report kinds, Monarch-style cash-flow
+diagram embedded as an image, lazy-loaded jsPDF). Remaining backlog: the
+Medium/Low items in NEXT_TASKS.md (server-mode docs, dashboard niceties) and
+the 100k-transaction validation for REQ-009.
 
 ## Last Completed Work
+
+### 2026-09-15 — Amount input fix (ISSUE-013) + report PDF export
+- **ISSUE-013 (amount field):** `AmountInput` no longer reformats while typing —
+  the field keeps raw text while focused and normalizes on blur (2-dp format,
+  negatives clamped to 0); `TransactionDraft.amount` is now `number | null` so
+  an empty field is representable and the form stays disabled until the amount
+  parses; `SplitModal` uses the same fixed component. 8 new component tests.
+- **Report PDF export (REQ-034):** *Export PDF* button next to *Export CSV* on
+  the Reports page. `src/lib/reportPdf.ts` is a dependency-free A4 layout
+  builder (title, applied filters, summary cards, data table with pagination
+  and repeated headers) unit-tested via an in-memory harness (`pdf-test-harness.ts`,
+  19 tests); jsPDF is imported dynamically at export time. The Monarch-style
+  cash-flow report rasterizes its live Sankey SVG at 2× and embeds it as an
+  image (graceful table-only fallback if rasterization fails).
+- Verified: **191/191 unit tests**, typecheck clean, production build clean;
+  jsPDF isolated in an on-demand chunk (initial JS 318.7 kB vs 317.2 kB before).
+  Browser probes could not run in this session's sandbox (headless Chrome denies
+  the IndexedDB API entirely — pre-existing environment restriction, noted in
+  KNOWN_ISSUES.md ISSUE-013); the affected flows are covered by the new
+  component tests.
 
 ### 2026-09-13 — Cash-flow diagram clipping fix + zoom/pan (ISSUE-012)
 - Fixed the Monarch-style cash-flow diagram clipping its right-hand labels (the
@@ -321,27 +342,32 @@ QFX/OFX import wizard (FITID dedupe), rule application on import, and
 
 **Current implementation state:**
 - `npm run typecheck` — PASS
-- `npm test` — PASS (164 tests)
+- `npm test` — PASS (191 tests)
 - `npm run build` — PASS (dist/ with PWA service worker; code-split chunks)
 - `npm run project:status` — reports requirements/tests/build/known-issues.
 
-**Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..012 all fixed/closed).
+**Known problems:** see KNOWN_ISSUES.md (0 open; ISSUE-001..013 all fixed/closed).
 
 **Next recommended task:** REQ-009's 100k-transaction validation (the last big
 IMPLEMENTED → VERIFIED gap), then the Medium backlog: REQ-044 (ServerRepository
 doc + stub) and REQ-047 (FinancialDataProvider docs).
 
-**Files changed (this session):** `src/components/reports/FlowChart.tsx`,
-`src/components/reports/CashFlowMapView.tsx`, `scripts/probe-cashflow-map.mjs`,
-KNOWN_ISSUES.md, README.md, DEPLOYMENT.md, REQUIREMENTS.md, BUILD_STATUS.md,
-CHANGELOG.md, NEXT_TASKS.md.
+**Files changed (this session):** `src/components/ui/form.tsx`,
+`src/components/ui/form.test.tsx`, `src/components/transactions/TransactionForm.tsx`,
+`src/components/transactions/SplitModal.tsx`, `src/pages/Transactions.tsx`,
+`src/lib/reportPdf.ts` (new), `src/lib/pdf-test-harness.ts` (new),
+`src/lib/reportPdf.test.ts` (new), `src/components/reports/CashFlowMapView.tsx`,
+`src/pages/Reports.tsx`, package.json (+jspdf), KNOWN_ISSUES.md,
+REQUIREMENTS.md, BUILD_STATUS.md, CHANGELOG.md, NEXT_TASKS.md, README.md,
+DEPLOYMENT.md.
 
-**Tests run:** `npm test` (164 passing), `npm run typecheck`, `npm run build`,
-`node scripts/verify-deployed.mjs` (**105/105** against the live deployment and
-**105/105** on the code-split local build), `scripts/probe-flex-budget.mjs`
-(**11/11**, twice — REQ-025 flex budget), `scripts/probe-cashflow-map.mjs`
-(**13/13**, twice — no-clip + zoom/pan on the Monarch-style cash-flow report).
+**Tests run:** `npm test` (**191 passing**), `npm run typecheck`, `npm run build`.
+Browser probes (flex-budget, cashflow-map, verify-deployed) could not run in
+this session's sandbox — headless Chrome denies the IndexedDB API entirely
+(pre-existing environment restriction; last recorded results: 105/105 live
+harness, 13/13 cash-flow, 11/11 flex budget from 2026-09-13).
 
-**Tests passing:** 164/164. **Tests failing:** 0. **Harness checks:** 105/105.
+**Tests passing:** 191/191. **Tests failing:** 0. **Harness checks:** 105/105
+(last verified 2026-09-13).
 
 **Important decisions:** see DECISIONS.md (DEC-001..DEC-009).

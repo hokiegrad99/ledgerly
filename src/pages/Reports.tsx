@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../store/AppContext';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Button, Card, CardBody, EmptyState, Badge } from '../components/ui/basic';
 import { Select, Input } from '../components/ui/form';
 import { Modal, ConfirmDialog } from '../components/ui/Modal';
-import { Download, Save, Copy, Trash2, Search, ArrowRight, Pencil } from 'lucide-react';
+import { Download, FileDown, Save, Copy, Trash2, Search, ArrowRight, Pencil } from 'lucide-react';
 import { formatMoney } from '../lib/money';
+import { exportReportPdf, formatMoneyPlain, type PdfTableCell, type ReportPdfOptions } from '../lib/reportPdf';
+import { CashFlowMapView, type CashFlowMapHandle } from '../components/reports/CashFlowMapView';
 import { newId, nowISO } from '../lib/id';
 import { currentMonthKey, monthStart, addMonthsToKey, monthKeyOf, todayISO } from '../lib/dates';
 import {
@@ -18,7 +20,6 @@ import {
 } from '../domain/calculations';
 import { MoneyBarChart, TrendAreaChart, SimpleLineChart, LegendList, CHART_COLORS } from '../components/ui/Charts';
 import { reportExcludedAccountIds, isExcludedFromReports } from '../domain/exclusions';
-import { CashFlowMapView } from '../components/reports/CashFlowMapView';
 import type { ReportFilters, SavedReport, Transaction } from '../domain/types';
 
 interface ReportDef {
@@ -69,6 +70,8 @@ export default function ReportsPage() {
   const [deleteReport, setDeleteReport] = useState<SavedReport | null>(null);
   const [renameReport, setRenameReport] = useState<SavedReport | null>(null);
   const [renameName, setRenameName] = useState('');
+  const cashflowMapRef = useRef<CashFlowMapHandle>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const month = currentMonthKey();
   const defaultFrom = monthStart(addMonthsToKey(month, -2));
@@ -140,6 +143,10 @@ export default function ReportsPage() {
   );
 
   const spendByCat = useMemo(() => spendingByCategory(filtered, filteredSplits), [filtered, filteredSplits]);
+  const spendByCatRows = useMemo(
+    () => [...spendByCat.entries()].map(([id, v]) => ({ name: categoryById(id)?.name ?? 'Uncategorized', value: v })).sort((a, b) => b.value - a.value),
+    [spendByCat, categoryById],
+  );
   const merchants = useMemo(() => spendingByMerchant(filtered, 15), [filtered]);
   const flow = cashFlow(filtered);
 
@@ -191,7 +198,7 @@ export default function ReportsPage() {
   const renderReport = () => {
     switch (kind) {
       case 'spending-category': {
-        const rows = [...spendByCat.entries()].map(([id, v]) => ({ name: categoryById(id)?.name ?? 'Uncategorized', value: v })).sort((a, b) => b.value - a.value);
+        const rows = spendByCatRows;
         return (
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -345,7 +352,7 @@ export default function ReportsPage() {
           <MoneyFlowView income={incomeByCat} spending={[...spendByCat.entries()].map(([id, v]) => ({ name: categoryById(id)?.name ?? 'Uncategorized', value: v })).sort((a, b) => b.value - a.value)} />
         );
       case 'cashflow-map':
-        return <CashFlowMapView filters={filters} />;
+        return <CashFlowMapView ref={cashflowMapRef} filters={filters} />;
       default:
         return <EmptyState title="Unknown report" />;
     }
@@ -353,6 +360,103 @@ export default function ReportsPage() {
 
   const exportCsv = (name: string, headers: string[], rows: (string | number)[][]) => {
     downloadText(`${name}-${todayISO()}.csv`, toCsv(headers, rows));
+  };
+
+  // ------------------------------------------------------------------ PDF
+
+  const filtersMeta = () => {
+    const parts = [`Period ${filters.dateFrom ?? '…'} – ${filters.dateTo ?? '…'}`];
+    if (filters.accountIds?.length === 1) parts.push(`Account: ${accountById(filters.accountIds[0])?.name ?? '—'}`);
+    if (filters.groupIds?.length === 1) parts.push(`Group: ${groups.find((g) => g.id === filters.groupIds![0])?.name ?? '—'}`);
+    if (filters.categoryIds?.length === 1) parts.push(`Category: ${categoryById(filters.categoryIds[0])?.name ?? '—'}`);
+    if (filters.tagIds?.length === 1) parts.push(`Tag: ${tags.find((t) => t.id === filters.tagIds![0])?.name ?? '—'}`);
+    if (filters.type) parts.push(`Type: ${filters.type}`);
+    if (filters.merchant) parts.push(`Merchant contains: "${filters.merchant}"`);
+    parts.push(`${filtered.length.toLocaleString()} transactions · Generated ${todayISO()} · Ledgerly`);
+    return parts.join(' · ');
+  };
+
+  const moneyRows = (rows: { name: string; value: number }[]): PdfTableCell[][] =>
+    rows.map((r) => [{ text: r.name }, { text: formatMoneyPlain(r.value) }]);
+
+  const moneyHeaders = ['Name', 'Amount'];
+
+  /** Per-report PDF payload. Returns null for views whose data is not hoisted here. */
+  const pdfPayload = (): ReportPdfOptions['table'] & { summary?: { label: string; value: string; color?: string }[] } | null => {
+    switch (kind) {
+      case 'spending-category':
+        return { headers: moneyHeaders, rows: moneyRows(spendByCatRows) };
+      case 'spending-merchant':
+        return {
+          headers: ['Merchant', 'Amount', 'Share'],
+          rows: merchants.map((m) => [{ text: m.merchant }, { text: formatMoneyPlain(m.amount) }, { text: `${flow.expenses > 0 ? Math.round((m.amount / flow.expenses) * 100) : 0}%` }]),
+        };
+      case 'spending-account':
+        return { headers: moneyHeaders, rows: moneyRows(byAccount) };
+      case 'spending-time':
+        return { headers: ['Month', 'Expenses'], rows: monthly.map((m) => [{ text: m.month }, { text: formatMoneyPlain(m.expenses) }]) };
+      case 'income-source':
+        return { headers: moneyHeaders, rows: moneyRows(incomeByCat) };
+      case 'cashflow':
+        return {
+          headers: ['Month', 'Income', 'Expenses', 'Net'],
+          rows: monthly.map((m) => [{ text: m.month }, { text: formatMoneyPlain(m.income) }, { text: formatMoneyPlain(m.expenses) }, { text: formatMoneyPlain(m.net) }]),
+        };
+      case 'networth-time':
+        return {
+          headers: ['Month', 'Assets', 'Liabilities', 'Net worth'],
+          rows: netWorth.history.map((h) => [{ text: h.month }, { text: formatMoneyPlain(h.assets) }, { text: formatMoneyPlain(h.liabilities) }, { text: formatMoneyPlain(h.netWorth) }]),
+        };
+      case 'category-trends':
+        return {
+          headers: ['Month', ...categoryTrends.series],
+          rows: categoryTrends.rows.map((r) => [{ text: String(r.label) }, ...categoryTrends.series.map((s) => ({ text: formatMoneyPlain(Number(r[s]) || 0) }))]),
+        };
+      case 'money-flow':
+        return { headers: moneyHeaders, rows: moneyRows(spendByCatRows) };
+      default:
+        return null; // cashflow-map exports itself via the imperative handle
+    }
+  };
+
+  const exportPdf = async () => {
+    setPdfError(null);
+    try {
+      if (kind === 'cashflow-map') {
+        const res = await cashflowMapRef.current?.exportPdf();
+        if (res && !res.ok) setPdfError(res.error ?? 'Could not generate the PDF.');
+        return;
+      }
+      const payload = pdfPayload();
+      if (!payload) {
+        setPdfError('This report does not support PDF export yet.');
+        return;
+      }
+      const reportLabel = REPORT_TYPES.find((r) => r.kind === kind)?.label ?? kind;
+      const res = await exportReportPdf({
+        title: reportLabel,
+        subtitle: 'Ledgerly report',
+        meta: filtersMeta(),
+        summary: kind === 'cashflow'
+          ? [
+              { label: 'Income (in range)', value: formatMoneyPlain(flow.income), color: '#10b981' },
+              { label: 'Expenses (in range)', value: formatMoneyPlain(flow.expenses), color: '#ef4444' },
+              { label: 'Net (in range)', value: formatMoneyPlain(flow.net), color: flow.net >= 0 ? '#10b981' : '#ef4444' },
+            ]
+          : kind === 'networth-time'
+            ? [
+                { label: 'Net worth', value: formatMoneyPlain(netWorth.summary.netWorth), color: '#8b5cf6' },
+                { label: 'Assets', value: formatMoneyPlain(netWorth.summary.assets) },
+                { label: 'Liabilities', value: formatMoneyPlain(netWorth.summary.liabilities), color: '#ef4444' },
+              ]
+            : undefined,
+        table: payload,
+        filename: `${kind}-${todayISO()}.pdf`,
+      });
+      if (!res.ok) setPdfError(res.error);
+    } catch (e) {
+      setPdfError(e instanceof Error ? e.message : 'Could not generate the PDF.');
+    }
   };
 
   const applySaved = (r: SavedReport) => {
@@ -412,6 +516,16 @@ export default function ReportsPage() {
             ))}
           </Select>
           <div className="ml-auto flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<FileDown className="h-3.5 w-3.5" />}
+              onClick={() => void exportPdf()}
+              aria-label="Export PDF"
+              title="Export PDF"
+            >
+              Export PDF
+            </Button>
             <Button variant="secondary" size="sm" icon={<Save className="h-3.5 w-3.5" />} onClick={() => { setSaveName(''); setSaveModal(true); }}>Save report</Button>
             {savedReports.length > 0 && (
               <Select className="w-auto text-xs" value="" onChange={(e) => {
@@ -483,6 +597,13 @@ export default function ReportsPage() {
             <Input value={filters.merchant ?? ''} onChange={(e) => setFilters((f) => ({ ...f, merchant: e.target.value || null }))} placeholder="Merchant contains…" className="w-44" />
           </div>
         </div>
+        {pdfError && (
+          <div className="flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200" role="status">
+            <span>{pdfError}</span>
+            <button className="shrink-0 font-medium underline" onClick={() => setPdfError(null)} aria-label="Dismiss">Dismiss</button>
+            <span className="sr-only">The CSV export remains available.</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           <span>{filtered.length.toLocaleString()} transactions in range</span>
           {filters.dateFrom && <span>· Income {formatMoney(flow.income)} · Expenses {formatMoney(flow.expenses)}</span>}
